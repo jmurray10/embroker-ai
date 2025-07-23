@@ -4,7 +4,7 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 
 ![Embroker AI](https://img.shields.io/badge/AI-Powered-blue) ![Insurance](https://img.shields.io/badge/Industry-Insurance-green) ![Flask](https://img.shields.io/badge/Framework-Flask-red) ![OpenAI](https://img.shields.io/badge/AI-GPT--4o-orange)
 
-## 🚀 Features
+##  Features
 
 ### Core Capabilities
 - **AI-Powered Chat Interface**: ChatGPT-style conversational interface for natural insurance consultations
@@ -21,7 +21,7 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 - **Conversational Applications**: Complete insurance application workflow through natural chat
 - **Background Processing**: Non-blocking company analysis and risk assessment generation
 
-## 🏗️ Architecture
+##  Architecture
 
 ### System Components
 
@@ -57,7 +57,7 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 - **Escalation Agent** (`escalation_agent.py`): Human specialist coordination
 - **Conversation Coordinator** (`conversation_coordinator.py`): Session and message routing
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 ### Backend
 - **Framework**: Flask with SQLAlchemy
@@ -77,7 +77,7 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 - **Classification API**: External company analysis at https://emb-classification.onrender.com
 - **OpenAI APIs**: Chat completions, embeddings, and vector search
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - Python 3.11+
@@ -154,7 +154,7 @@ Application Start → Background Data Integration → Conversational Questions �
 Progress Tracking → Completion Summary → Quote Generation
 ```
 
-## 🎯 API Integration
+##  API Integration
 
 ### External Classification API
 - **Endpoint**: `https://emb-classification.onrender.com/classify`
@@ -169,7 +169,7 @@ Progress Tracking → Completion Summary → Quote Generation
 4. Receives detailed industry analysis with 80%+ confidence
 5. Generates customized risk assessment starting with classification data
 
-## 📈 Performance Metrics
+##  Performance Metrics
 
 - **Response Time**: 4-12 seconds for complete risk assessments
 - **Report Length**: 5,000-8,000 characters (500-1000 words)
@@ -197,14 +197,14 @@ Progress Tracking → Completion Summary → Quote Generation
 - **Session Management**: Persistent conversation state
 - **Mobile Optimization**: Responsive design for all devices
 
-## 🔐 Security Features
+##  Security Features
 
 - **API Key Management**: Separate keys for main system and monitoring
 - **Session Encryption**: Secure session management
 - **Database Security**: Connection pooling with SSL
 - **Input Validation**: Sanitized user inputs and API responses
 
-## 📱 User Experience
+##  User Experience
 
 ### ChatGPT-Style Interface
 - Clean, minimal design without chat bubbles
@@ -232,34 +232,21 @@ Progress Tracking → Completion Summary → Quote Generation
 gunicorn --bind 0.0.0.0:5000 --workers 2 --reload main:app
 ```
 
-## 📊 Analytics & Monitoring
+##  Analytics & Monitoring
 
 - **Built-in Dashboard**: `/admin/logs` for system analytics
 - **Performance Tracking**: Response times, token usage, model metrics
 - **Error Management**: Comprehensive logging with severity levels
 - **Conversation Analytics**: User engagement and escalation patterns
+t
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
+## License
 
 This project is proprietary software developed for Embroker's insurance technology platform.
 
-## 📞 Support
-
-For technical support or questions about the Embroker AI Insurance Chatbot:
-- Internal documentation: See `replit.md` for detailed technical specifications
-- System status: Monitor workflow logs for real-time system health
-- API issues: Check external classification API availability
 
 ---
 
-**Built with ❤️ by the Embroker Engineering Team**
+**Built with by the Embroker Engineering Team**
 
 *Transforming insurance through AI-powered conversation and intelligent automation.*
