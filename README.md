@@ -287,28 +287,11 @@ gunicorn --bind 0.0.0.0:5000 --workers 2 --reload main:app
 - **Conversation Analytics**: User engagement and escalation patterns
 - **Vector Search Analytics**: Query performance and relevance tracking
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## 📄 License
 
 This project is proprietary software developed for Embroker's insurance technology platform.
 
-## 📞 Support
 
-For technical support or questions about the Embroker AI Insurance Chatbot:
-- Internal documentation: See docs/ folder for detailed specifications
-- System status: Monitor workflow logs for real-time system health
-- API issues: Check external classification API availability
-- Vector DB: Verify Pinecone connection status
-
----
-
-**Built with ❤️ by the Embroker Engineering Team**
+**Built by the Embroker Data Team**
 
 *Transforming insurance through AI-powered conversation and intelligent automation.*
