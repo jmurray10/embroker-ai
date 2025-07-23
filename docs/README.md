@@ -10,7 +10,7 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 - **AI-Powered Chat Interface**: ChatGPT-style conversational interface for natural insurance consultations
 - **Real-Time Risk Assessment**: Automated company analysis and risk evaluation using external classification APIs
 - **Multi-Agent Architecture**: Specialized agents for different insurance domains and processes
-- **Vector Knowledge Base**: OpenAI Vector Store integration for accurate, context-aware responses
+- **Vector Knowledge Base**: Pinecone integration for accurate, context-aware responses
 - **Slack Integration**: Seamless escalation to human specialists with real-time messaging
 - **External API Integration**: Live company classification using https://emb-classification.onrender.com/classify
 
