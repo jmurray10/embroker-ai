@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>OpenAI Agents Insurance Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            height: 100vh;
+            display: flex;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #10a37f 0%, #1a7f64 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Theme Selector Styles */
+        .theme-selector {
+            position: relative;
+        }
+
+        .theme-toggle {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .theme-dropdown {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            padding: 0.5rem;
+            min-width: 140px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease;
+        }
+
+        .theme-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .theme-option {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            color: #374151;
+        }
+
+        .theme-option:hover {
+            background-color: #f3f4f6;
+        }
+
+        .theme-option.active {
+            background-color: #10a37f;
+            color: white;
+        }
+
+        .theme-preview {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,0,0,0.1);
+        }
+
+        .default-preview {
+            background: linear-gradient(135deg, #10a37f 0%, #1a7f64 100%);
+        }
+
+        .dark-preview {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        }
+
+        .light-preview {
+            background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+        }
+
+        .minimal-preview {
+            background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+        }
+
+        .ocean-preview {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        }
+
+        /* Theme Variables */
+        :root {
+            --bg-primary: #f7f7f8;
+            --bg-secondary: #ffffff;
+            --text-primary: #374151;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --header-bg: linear-gradient(135deg, #10a37f 0%, #1a7f64 100%);
+            --message-bg-user: #10a37f;
+            --message-bg-assistant: #f3f4f6;
+        }
+
+        /* Dark Theme */
+        [data-theme="dark"] {
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --border-color: #374151;
+            --header-bg: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            --message-bg-user: #374151;
+            --message-bg-assistant: #374151;
+        }
+
+        /* Light Theme */
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --border-color: #e5e7eb;
+            --header-bg: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+            --message-bg-user: #e5e7eb;
+            --message-bg-assistant: #f3f4f6;
+        }
+
+        /* Minimal Theme */
+        [data-theme="minimal"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #ffffff;
+            --text-primary: #000000;
+            --text-secondary: #666666;
+            --border-color: #e0e0e0;
+            --header-bg: #ffffff;
+            --message-bg-user: #f5f5f5;
+            --message-bg-assistant: #ffffff;
+        }
+
+        /* Ocean Theme */
+        [data-theme="ocean"] {
+            --bg-primary: #f0f9ff;
+            --bg-secondary: #ffffff;
+            --text-primary: #0c4a6e;
+            --text-secondary: #0369a1;
+            --border-color: #bae6fd;
+            --header-bg: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            --message-bg-user: #0ea5e9;
+            --message-bg-assistant: #e0f2fe;
+        }
+
+        /* Apply theme variables */
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .header {
+            background: var(--header-bg);
+        }
+
+        [data-theme="light"] .header,
+        [data-theme="minimal"] .header {
+            color: var(--text-primary);
+        }
+
+        [data-theme="minimal"] .header {
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: none;
+        }
+
+        .message-content {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .message.user .message-content {
+            background-color: var(--message-bg-user);
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background-color: var(--message-bg-assistant);
+        }
+
+        [data-theme="dark"] .message.user .message-content {
+            color: white;
+        }
+
+        [data-theme="light"] .message.user .message-content,
+        [data-theme="minimal"] .message.user .message-content {
+            color: var(--text-primary);
+        }
+
+        .input-container {
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .message-input {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        /* Sidebar Collapsed State */
+        .sidebar.collapsed {
+            width: 0;
+            overflow: hidden;
+        }
+
+        /* Mobile hamburger menu button - Force visible on mobile */
+        .mobile-hamburger {
+            position: fixed !important;
+            top: 10px !important;
+            left: 10px !important;
+            width: 55px !important;
+            height: 55px !important;
+            background: #ff0000 !important;
+            border: 3px solid white !important;
+            border-radius: 10px !important;
+            cursor: pointer !important;
+            z-index: 999999 !important;
+            display: none !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 4px !important;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5) !important;
+            font-size: 18px !important;
+            color: white !important;
+            font-weight: bold !important;
+        }
+
+        .mobile-hamburger span {
+            width: 30px !important;
+            height: 4px !important;
+            background: white !important;
+            border-radius: 2px !important;
+            display: block !important;
+        }
+
+        /* Force show mobile menu button always for testing */
+        #debugMobileBtn {
+            display: inline-block !important;
+            visibility: visible !important;
+        }
+        
+        /* Show mobile menu button on small screens */
+        @media screen and (max-width: 768px) {
+            #debugMobileBtn {
+                display: inline-block !important;
+                background: #ff0000 !important;
+            }
+        }
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 80vw;
+                max-width: 300px;
+                height: 100vh;
+                z-index: 2000;
+                transition: left 0.3s ease;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            }
+
+            .sidebar.show {
+                left: 0;
+            }
+
+            .main-content {
+                width: 100vw;
+                margin-left: 0;
+            }
+
+            .header {
+                padding: 0.75rem 1rem;
+                position: relative;
+            }
+
+            .header-content {
+                margin-left: 4rem;
+                margin-right: 1rem;
+            }
+
+            .header {
+                padding: 1rem !important;
+                position: relative !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+
+            .header h1 {
+                font-size: 1.1rem;
+            }
+
+            .header p {
+                font-size: 0.8rem;
+                display: none;
+            }
+
+            .system-badge {
+                font-size: 0.7rem;
+                margin-left: 0.5rem;
+            }
+
+            .header-actions {
+                gap: 0.25rem;
+            }
+
+            .mobile-hamburger {
+                top: 15px !important;
+                left: 15px !important;
+            }
+
+            /* Overlay for mobile sidebar */
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0,0,0,0.5);
+                z-index: 1500;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .sidebar-overlay.show {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .chat-container {
+                height: calc(100vh - 80px);
+            }
+
+            .messages-container {
+                padding: 1rem 0.75rem;
+            }
+
+            .input-container {
+                padding: 1rem;
+            }
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .system-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            margin-left: 1rem;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Force override CSS variables for new chat button */
+        :root {
+            --message-bg-user: #000000 !important;
+        }
+        
+        .new-chat-btn {
+            flex: 1 !important;
+            background-color: #000000 !important;
+            background: #000000 !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 0.5rem !important;
+            padding: 0.75rem 1rem !important;
+            cursor: pointer !important;
+            font-weight: 500 !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .new-chat-btn:hover {
+            background-color: #333333 !important;
+            background: #333333 !important;
+        }
+        
+        /* Additional force overrides */
+        button.new-chat-btn {
+            background-color: #000000 !important;
+            background: #000000 !important;
+        }
+        
+        [class*="new-chat"] {
+            background-color: #000000 !important;
+            background: #000000 !important;
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .sidebar-toggle:hover {
+            background-color: var(--message-bg-assistant);
+        }
+
+        .sidebar-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .chat-history {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .chat-item {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .chat-item:hover {
+            background-color: var(--message-bg-assistant);
+        }
+
+        .chat-item.active {
+            background-color: var(--message-bg-user);
+            color: white;
+        }
+
+        .chat-item-title {
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+            line-height: 1.3;
+        }
+
+        .chat-item-preview {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            line-height: 1.2;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .risk-report-section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem;
+        }
+
+        .risk-report-item {
+            padding: 1rem;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .risk-report-item:hover {
+            border-color: var(--message-bg-user);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .risk-report-title {
+            font-weight: 600;
+            color: var(--message-bg-user);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .risk-report-company {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .risk-report-date {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: none;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem 1rem;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #10a37f;
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: #6366f1;
+            color: white;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: #10a37f;
+            color: white;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            border-bottom-left-radius: 0.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .input-container {
+            padding: 1rem 2rem 2rem;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .input-wrapper {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .message-input {
+            width: 100%;
+            padding: 1rem 3.5rem 1rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 1.5rem;
+            font-size: 1rem;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+            line-height: 1.5;
+            min-height: 56px;
+            max-height: 120px;
+        }
+
+        .message-input:focus {
+            border-color: #10a37f;
+        }
+
+        .send-button {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: #10a37f;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: #0d8f6e;
+        }
+
+        .send-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .typing-indicator .message-avatar {
+            background: #6366f1;
+            color: white;
+        }
+
+        .typing-dots {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #9ca3af;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.5;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .new-chat-button {
+            position: fixed;
+            top: 1rem;
+            right: 2rem;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .new-chat-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .status-button {
+            position: fixed;
+            top: 1rem;
+            right: 8rem;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .status-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .welcome-message {
+            text-align: center;
+            color: #6b7280;
+            margin: 2rem 0;
+            padding: 0 1rem;
+        }
+
+        .welcome-message h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+
+        .welcome-message p {
+            line-height: 1.6;
+        }
+
+        .tools-indicator {
+            background: linear-gradient(145deg, #f0f9ff, #e0f2fe);
+            border: 1px solid #0284c7;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #0c4a6e;
+        }
+
+        .tools-indicator strong {
+            color: #075985;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+            
+            .input-container {
+                padding: 1rem;
+            }
+            
+            .message-content {
+                max-width: 85%;
+            }
+            
+            .new-chat-button,
+            .status-button {
+                top: 0.5rem;
+                font-size: 0.875rem;
+                padding: 0.375rem 0.75rem;
+            }
+            
+            .status-button {
+                right: 6rem;
+            }
+            
+            .new-chat-button {
+                right: 1rem;
+            }
+            
+            /* Mobile notification styling */
+            .message.system .message-avatar {
+                width: 35px !important;
+                height: 35px !important;
+                font-size: 0.7rem !important;
+            }
+            
+            .message.system .message-content {
+                max-width: 80% !important;
+                margin-left: 6px !important;
+                padding: 10px !important;
+                font-size: 0.9rem !important;
+            }
+            
+            .message.system {
+                margin-bottom: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="new-chat-btn" onclick="startNewChat()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;">
+                    <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/>
+                </svg>
+                New Chat
+            </button>
+            
+            <!-- Mobile Menu Button (below New Chat) -->
+            <button id="debugMobileBtn" onclick="toggleMobileSidebar()" style="
+                background: #ff0000 !important;
+                border: 2px solid white !important;
+                border-radius: 8px !important;
+                color: white !important;
+                cursor: pointer !important;
+                font-weight: bold !important;
+                padding: 8px 12px !important;
+                font-size: 12px !important;
+                margin-left: 8px !important;
+                display: inline-block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            ">MENU</button>
+            
+            <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18m-9-9-9 9 9 9"/>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="sidebar-content">
+            <!-- Chat History -->
+            <div class="chat-history">
+                <div class="section-title">Recent Chats</div>
+                <div id="chatHistoryList">
+                    <!-- Chat items will be populated dynamically -->
+                </div>
+            </div>
+            
+            <!-- Risk Reports -->
+            <div class="risk-report-section">
+                <div class="section-title">Risk Reports</div>
+                <div id="riskReportsList">
+                    <!-- Risk reports will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+
+
+
+        <div class="header">
+            <div class="header-content">
+                <h1>Embroker AI Insurance Assistant</h1>
+                <p>Advanced AI agent with intelligent tools and function calling capabilities</p>
+                <span class="system-badge">Enhanced Agent</span>
+            </div>
+            <div class="header-actions">
+                <button class="status-button" onclick="checkAgentStatus()">Status</button>
+            </div>
+        </div>
+
+        <div class="chat-container">
+        <div class="messages-container" id="messagesContainer">
+            <div class="welcome-message">
+                <h2>Hi! I'm Shotwel, your OpenAI Agents-powered insurance specialist</h2>
+                <p>I'm equipped with advanced tools for insurance knowledge search and company risk analysis. I can help with policy questions, underwriting criteria, and provide detailed company assessments.</p>
+                <div class="tools-indicator">
+                    <strong>Available Tools:</strong> Insurance Knowledge Search, Company Risk Analysis, Underwriting Assessment
+                </div>
+            </div>
+<!-- Session Participants and State -->
+        <div id="sessionState" style="padding: 1rem; background: #f0f9ff; border-bottom: 1px solid #e5e7eb; display: none;">
+            <strong>Session State:</strong> <span id="sessionStateText"></span>
+            <div id="participantsList" style="margin-top: 0.5rem;"></div>
+        </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="message-avatar">Shotwel</div>
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <textarea 
+                    class="message-input" 
+                    id="messageInput" 
+                    rows="1"
+                ></textarea>
+                <button class="send-button" id="sendButton" onclick="sendMessage()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Mobile sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+    <!-- Risk Assessment Modal -->
+    <div id="riskAssessmentModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+        <div style="background-color: #fefefe; margin: 2% auto; padding: 0; border-radius: 12px; width: 90%; max-width: 800px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="padding: 24px 32px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; color: #333; font-size: 24px;">Risk Assessment Report</h2>
+                <button onclick="closeRiskAssessmentModal()" style="background: none; border: none; font-size: 28px; color: #999; cursor: pointer; padding: 0; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background-color 0.2s;">
+                    &times;
+                </button>
+            </div>
+            <div id="riskAssessmentContent" style="padding: 32px; overflow-y: auto; flex: 1;">
+                <div style="text-align: center; padding: 40px;">
+                    <div style="display: inline-block; border: 3px solid #10a37f; border-radius: 50%; width: 60px; height: 60px; border-top-color: transparent; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 20px; color: #666;">Loading risk assessment...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #riskAssessmentContent {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        #riskAssessmentContent h1 {
+            color: #111;
+            font-size: 28px;
+            margin-bottom: 24px;
+            font-weight: 600;
+        }
+        
+        #riskAssessmentContent h2 {
+            color: #222;
+            font-size: 20px;
+            margin-top: 32px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            border-bottom: 2px solid #10a37f;
+            padding-bottom: 8px;
+        }
+        
+        #riskAssessmentContent h3 {
+            color: #333;
+            font-size: 18px;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        #riskAssessmentContent p {
+            margin-bottom: 16px;
+            color: #444;
+        }
+        
+        #riskAssessmentContent ul {
+            margin-bottom: 16px;
+            padding-left: 24px;
+        }
+        
+        #riskAssessmentContent li {
+            margin-bottom: 8px;
+            color: #444;
+        }
+        
+        #riskAssessmentContent strong {
+            color: #222;
+            font-weight: 600;
+        }
+        
+        #riskAssessmentContent .info-block {
+            background: #f8f9fa;
+            border-left: 4px solid #10a37f;
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        #riskAssessmentContent .info-block p {
+            margin: 4px 0;
+        }
+        
+        #riskAssessmentContent hr {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 32px 0;
+        }
+    </style>
+
+    <script>
+        const messagesContainer = document.getElementById('messagesContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+        
+        let currentConversationId = "{{ conversation_id }}";
+        
+        // Debug logging
+        console.log('Chat page loaded with conversation ID:', currentConversationId);
+
+        // Theme selector functionality
+        function toggleThemeSelector() {
+            const dropdown = document.getElementById('themeDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('preferred-theme', theme);
+            
+            // Update active state
+            document.querySelectorAll('.theme-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            document.querySelector(`[data-theme="${theme}"]`).classList.add('active');
+            
+            // Close dropdown
+            document.getElementById('themeDropdown').classList.remove('show');
+        }
+
+        // Initialize theme
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('preferred-theme') || 'default';
+            setTheme(savedTheme);
+        }
+
+        // Theme option click handlers
+        document.querySelectorAll('.theme-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const theme = option.getAttribute('data-theme');
+                setTheme(theme);
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.theme-selector')) {
+                document.getElementById('themeDropdown').classList.remove('show');
+            }
+        });
+
+        // Initialize theme on page load
+        initializeTheme();
+
+        // Auto-resize textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Send message on Enter (but not Shift+Enter)
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function addMessage(content, isUser = false, shouldStream = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${isUser ? 'You' : 'Embroker AI'}</div>
+            `;
+            messageDiv.appendChild(contentDiv);
+            
+            messagesContainer.appendChild(messageDiv);
+            
+            if (shouldStream && !isUser) {
+                streamText(contentDiv, content);
+            } else {
+                contentDiv.innerHTML = content;
+                scrollToBottom();
+            }
+        }
+        
+        function streamText(element, text, speed = 30) {
+            element.innerHTML = '';
+            
+            const words = text.split(' ');
+            let currentWordIndex = 0;
+            
+            function typeNextWord() {
+                if (currentWordIndex < words.length) {
+                    if (currentWordIndex > 0) {
+                        element.innerHTML += ' ';
+                    }
+                    
+                    const word = words[currentWordIndex];
+                    element.innerHTML += word;
+                    
+                    currentWordIndex++;
+                    scrollToBottom();
+                    
+                    let nextDelay = speed;
+                    if (word.endsWith('.') || word.endsWith('!') || word.endsWith('?')) {
+                        nextDelay = speed * 3;
+                    } else if (word.endsWith(',') || word.endsWith(';')) {
+                        nextDelay = speed * 1.5;
+                    }
+                    
+                    setTimeout(typeNextWord, nextDelay);
+                }
+            }
+            
+            typeNextWord();
+        }
+
+        function showTyping() {
+            typingIndicator.style.display = 'flex';
+            scrollToBottom();
+        }
+
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function setInputState(disabled) {
+            messageInput.disabled = disabled;
+            sendButton.disabled = disabled;
+        }
+
+        let progressMessageId = null;
+
+        function showProgressUpdate(message) {
+            if (progressMessageId) {
+                const existingMsg = document.getElementById(progressMessageId);
+                if (existingMsg) {
+                    existingMsg.querySelector('.message-content').innerHTML = `<em style="color: #666;">${message}</em>`;
+                    return;
+                }
+            }
+            
+            progressMessageId = 'progress_' + Date.now();
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
+            messageDiv.id = progressMessageId;
+            messageDiv.innerHTML = `
+                <div class="message-avatar">Shotwel</div>
+                <div class="message-content"><em style="color: #666;">${message}</em></div>
+            `;
+            messagesContainer.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function hideProgressUpdate() {
+            if (progressMessageId) {
+                const progressMsg = document.getElementById(progressMessageId);
+                if (progressMsg) {
+                    progressMsg.remove();
+                }
+                progressMessageId = null;
+            }
+        }
+
+        function detectMessageType(message) {
+            const lower = message.toLowerCase();
+            
+            return {
+                needsDocuments: lower.includes('coverage') || lower.includes('policy') || lower.includes('insurance') || 
+                               lower.includes('premium') || lower.includes('claim') || lower.includes('liability') ||
+                               lower.includes('cyber') || lower.includes('e&o') || lower.includes('professional'),
+                               
+                needsWebSearch: lower.includes('news') || lower.includes('latest') || lower.includes('current') ||
+                               lower.includes('recent') || lower.includes('update') || lower.includes('trend'),
+                               
+                isApplication: lower.includes('application') || lower.includes('apply') || lower.includes('quote') ||
+                              lower.includes('fintech') || lower.includes('startup') || lower.includes('requirements') ||
+                              lower.includes('eligibility') || lower.includes('questions')
+            };
+        }
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, true);
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            
+            setInputState(true);
+            showTyping();
+
+            // Show contextual progress updates based on message content
+            const messageType = detectMessageType(message);
+            setTimeout(() => showProgressUpdate("Analyzing your request..."), 500);
+            setTimeout(() => showProgressUpdate("Routing to specialist agent..."), 2000);
+            
+            if (messageType.needsDocuments) {
+                setTimeout(() => showProgressUpdate("Searching insurance documents..."), 3500);
+                setTimeout(() => showProgressUpdate("Reviewing policy details..."), 5500);
+            }
+            
+            if (messageType.needsWebSearch) {
+                setTimeout(() => showProgressUpdate("Searching latest industry information..."), 4000);
+            }
+            
+            if (messageType.isApplication) {
+                setTimeout(() => showProgressUpdate("Accessing application requirements..."), 3500);
+                setTimeout(() => showProgressUpdate("Compiling eligibility criteria..."), 5500);
+            }
+            
+            setTimeout(() => showProgressUpdate("Preparing personalized response..."), 7000);
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message: message,
+                        conversation_id: currentConversationId 
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    hideProgressUpdate();
+                    addMessage(data.response, false, true);
+                    currentConversationId = data.conversation_id;
+                } else {
+                    hideProgressUpdate();
+                    addMessage('Sorry, I encountered an error. Please try again.', false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                hideProgressUpdate();
+                addMessage('Sorry, I encountered a connection error. Please try again.', false);
+            } finally {
+                hideTyping();
+                setInputState(false);
+                messageInput.focus();
+            }
+        }
+
+        async function startNewChat() {
+            try {
+                const response = await fetch('/new-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentConversationId = data.conversation_id;
+                    messagesContainer.innerHTML = `
+                        <div class="welcome-message">
+                            <h2>I'm Shotwel, your AI assistant.</h2>
+                            <p>I'm equipped with advanced tools for insurance knowledge search and company risk analysis. I can help with policy questions, underwriting criteria, and provide detailed company assessments.</p>
+                            <div class="tools-indicator">
+                                <strong>Available Tools:</strong> Insurance Knowledge Search, Company Risk Analysis, Underwriting Assessment
+                            </div>
+                        </div>
+                    `;
+                    messageInput.focus();
+                }
+            } catch (error) {
+                console.error('Error starting new chat:', error);
+            }
+        }
+
+        async function checkAgentStatus() {
+            try {
+                const response = await fetch('/agent-status');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const statusMessage = `
+                        <strong>Agent Status:</strong> ${data.agent_status}<br>
+                        <strong>Model:</strong> ${data.model}<br>
+                        <strong>Tools Available:</strong> ${data.tools_available}<br>
+                        <strong>System:</strong> ${data.system || 'OpenAI Agents SDK'}
+                    `;
+                    addMessage(statusMessage, false);
+                } else {
+                    addMessage('Unable to retrieve agent status.', false);
+                }
+            } catch (error) {
+                console.error('Error checking status:', error);
+                addMessage('Error checking agent status.', false);
+// --- SocketIO Real-Time Session Integration ---
+        let socket = null;
+
+        function connectSocketIO() {
+            socket = io();
+
+            // Join session on connect
+            socket.on('connect', () => {
+                if (currentConversationId) {
+                    socket.emit('join_session', {
+                        conversation_id: currentConversationId,
+                        role: 'customer',
+                        name: 'You'
+                    });
+                }
+            });
+
+            // Listen for session updates
+            socket.on('session_update', (session) => {
+                updateSessionState(session);
+            });
+
+            // Listen for new messages
+            socket.on('new_message', (data) => {
+                addMessage(data.message, data.role === 'customer', false);
+            });
+        }
+
+        function updateSessionState(session) {
+            const sessionStateDiv = document.getElementById('sessionState');
+            const sessionStateText = document.getElementById('sessionStateText');
+            const participantsList = document.getElementById('participantsList');
+            if (!session) {
+                sessionStateDiv.style.display = 'none';
+                return;
+            }
+            sessionStateDiv.style.display = 'block';
+            sessionStateText.textContent = session.state.replace('_', ' ').toUpperCase();
+            participantsList.innerHTML = session.participants.map(p =>
+                `${p.is_human ? '👤' : '🤖'} <strong>${p.role.charAt(0).toUpperCase() + p.role.slice(1)}</strong>: ${p.name}`
+            ).join('<br>');
+        }
+
+        // Call connectSocketIO on page load
+        connectSocketIO();
+
+        // Track displayed messages to prevent duplicates
+        let displayedNotifications = new Set();
+        
+        // Check for notifications from background analysis
+        async function checkForMessages() {
+            if (!currentConversationId) return;
+            
+            try {
+                const response = await fetch(`/check-messages/${currentConversationId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    console.log('MOBILE NOTIFICATION CHECK:', data);
+                    console.log('Messages container exists:', !!messagesContainer);
+                    console.log('Has new messages:', data.has_new_messages);
+                    console.log('Message count:', data.messages ? data.messages.length : 0);
+                    
+                    if (data.has_new_messages && data.messages) {
+                        data.messages.forEach(msg => {
+                            // Create unique ID for message to prevent duplicates
+                            const msgId = msg.timestamp + '_' + msg.message.substring(0, 20);
+                            
+                            if (!displayedNotifications.has(msgId)) {
+                                displayedNotifications.add(msgId);
+                                
+                                // Force display system notification - no CSS dependencies
+                                const messageDiv = document.createElement('div');
+                                messageDiv.className = 'message system';
+                                messageDiv.setAttribute('style', 'display: flex !important; align-items: flex-start !important; margin: 1rem 0 !important; padding: 0.5rem !important; background: rgba(33, 150, 243, 0.05) !important; border-radius: 8px !important;');
+                                
+                                messageDiv.innerHTML = `
+                                    <div style="background: #2196f3 !important; color: white !important; border-radius: 50% !important; width: 40px !important; height: 40px !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 16px !important; font-weight: 600 !important; flex-shrink: 0 !important; margin-right: 8px !important;">🔔</div>
+                                    <div style="background: #e3f2fd !important; border-left: 4px solid #2196f3 !important; padding: 12px !important; border-radius: 8px !important; flex: 1 !important; max-width: calc(100% - 56px) !important;">
+                                        <strong style="color: #1976d2 !important;">System:</strong> <span style="color: #0d47a1 !important; font-style: italic !important;">${msg.message}</span>
+                                    </div>
+                                `;
+                                
+                                // Force append and scroll
+                                messagesContainer.appendChild(messageDiv);
+                                messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                                
+                                // Multiple scroll attempts for mobile
+                                setTimeout(() => {
+                                    scrollToBottom();
+                                    messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                                }, 100);
+                                
+                                console.log('NOTIFICATION FORCED DISPLAY:', msgId, messageDiv);
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking messages:', error);
+            }
+        }
+
+        // Load conversation history first
+        loadConversationHistory();
+        
+        // Aggressive notification checking for mobile
+        function startNotificationSystem() {
+            console.log('MOBILE: Starting notification system for:', currentConversationId);
+            
+            // Immediate check
+            checkForMessages();
+            
+            // Multiple polling intervals for reliability
+            setInterval(checkForMessages, 2000); // Every 2 seconds
+            
+            // Force check when page becomes visible (mobile focus)
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    console.log('MOBILE: Page visible, checking notifications');
+                    checkForMessages();
+                }
+            });
+            
+            // Force check on any touch/click (mobile interaction)
+            document.addEventListener('touchstart', () => {
+                setTimeout(checkForMessages, 500);
+            }, { passive: true });
+        }
+        
+        // Start immediately when conversation ID is available
+        if (currentConversationId) {
+            startNotificationSystem();
+        } else {
+            // Wait for conversation ID then start
+            setTimeout(() => {
+                if (currentConversationId) {
+                    startNotificationSystem();
+                }
+            }, 1000);
+        }
+
+        // Initialize
+        messageInput.focus();
+        // Sidebar functionality
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        // Mobile sidebar functionality
+        function toggleMobileSidebar() {
+            console.log('Toggle mobile sidebar called');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('show');
+                overlay.classList.toggle('show');
+                console.log('Sidebar toggled, classes:', sidebar.className);
+            } else {
+                console.error('Sidebar or overlay not found');
+            }
+        }
+
+        // AGGRESSIVE STYLE FORCING - NO CACHE
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 AGGRESSIVE STYLE OVERRIDE - v' + Date.now());
+            
+            // Force minimal theme
+            document.documentElement.className = 'minimal';
+            document.body.setAttribute('data-theme', 'minimal');
+            
+            // VERY aggressive new chat button styling
+            const newChatBtn = document.querySelector('.new-chat-btn');
+            if (newChatBtn) {
+                newChatBtn.style.cssText = 'background: #000000 !important; background-color: #000000 !important; color: white !important;';
+                newChatBtn.setAttribute('style', 'background: #000000 !important; background-color: #000000 !important; color: white !important; flex: 1; border: none; border-radius: 0.5rem; padding: 0.75rem 1rem; cursor: pointer; font-weight: 500;');
+                console.log('✅ New Chat button AGGRESSIVELY forced to black');
+                console.log('Button background:', window.getComputedStyle(newChatBtn).backgroundColor);
+            }
+            
+            // VERY aggressive mobile button
+            const mobileBtn = document.getElementById('debugMobileBtn');
+            if (mobileBtn) {
+                mobileBtn.style.cssText = 'display: inline-block !important; visibility: visible !important; background: #ff0000 !important; border: 2px solid white !important; color: white !important; padding: 8px 12px; margin-left: 8px; font-weight: bold; border-radius: 8px;';
+                console.log('✅ Mobile button AGGRESSIVELY forced visible');
+            }
+            
+            // Force refresh styles
+            document.head.insertAdjacentHTML('beforeend', '<style>/* Force refresh v' + Date.now() + ' */ .new-chat-btn { background: #000000 !important; } #debugMobileBtn { display: inline-block !important; }</style>');
+            
+            console.log('📱 ALL AGGRESSIVE CHANGES APPLIED v' + Date.now());
+        });
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            sidebar.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+
+        // Chat history management
+        function loadChatHistory() {
+            // This would typically load from backend
+            const sampleChats = [
+                {
+                    id: 'chat-1',
+                    title: 'Tech E&O Coverage Questions',
+                    preview: 'What are the coverage limits for professional liability...',
+                    date: new Date(Date.now() - 24 * 60 * 60 * 1000)
+                },
+                {
+                    id: 'chat-2', 
+                    title: 'Cyber Insurance Inquiry',
+                    preview: 'I need information about data breach coverage...',
+                    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+                }
+            ];
+            
+            const chatList = document.getElementById('chatHistoryList');
+            chatList.innerHTML = sampleChats.map(chat => `
+                <div class="chat-item" onclick="loadChat('${chat.id}')">
+                    <div class="chat-item-title">${chat.title}</div>
+                    <div class="chat-item-preview">${chat.preview}</div>
+                </div>
+            `).join('');
+        }
+
+        // Risk reports management
+        function loadRiskReports() {
+            const reportsList = document.getElementById('riskReportsList');
+            
+            // Check if there's a risk assessment for current conversation
+            if (currentConversationId) {
+                fetch(`/api/risk-assessment/${currentConversationId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.report) {
+                            // Extract company name from the report
+                            const companyMatch = data.report.match(/Company Name:\*\*\s*([^*\n]+)/);
+                            const companyName = companyMatch ? companyMatch[1].trim() : 'Your Company';
+                            
+                            reportsList.innerHTML = `
+                                <div class="risk-report-item" onclick="viewRiskReport('${currentConversationId}')" style="cursor: pointer; padding: 12px; border-radius: 8px; transition: background-color 0.2s;">
+                                    <div class="risk-report-title" style="display: flex; align-items: center; gap: 8px; color: #333; font-weight: 500;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                            <polyline points="14,2 14,8 20,8"/>
+                                            <line x1="16" y1="13" x2="8" y2="13"/>
+                                            <line x1="16" y1="17" x2="8" y2="17"/>
+                                            <polyline points="10,9 9,9 8,9"/>
+                                        </svg>
+                                        Risk Assessment
+                                    </div>
+                                    <div class="risk-report-company" style="font-size: 14px; color: #666; margin-top: 4px;">${companyName}</div>
+                                    <div class="risk-report-date" style="font-size: 12px; color: #999; margin-top: 2px;">${new Date(data.generated_at * 1000).toLocaleDateString()}</div>
+                                </div>
+                            `;
+                            
+                            // Add hover effect
+                            const item = reportsList.querySelector('.risk-report-item');
+                            item.onmouseover = function() { this.style.backgroundColor = '#f5f5f5'; };
+                            item.onmouseout = function() { this.style.backgroundColor = 'transparent'; };
+                        } else {
+                            reportsList.innerHTML = `
+                                <div style="padding: 20px; text-align: center; color: #666;">
+                                    <p style="font-size: 14px; margin: 0;">No risk assessments yet</p>
+                                    <p style="font-size: 12px; margin-top: 8px; color: #999;">Ask the AI to generate one</p>
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading risk reports:', error);
+                        reportsList.innerHTML = `
+                            <div style="padding: 20px; text-align: center; color: #666;">
+                                <p style="font-size: 14px;">Unable to load reports</p>
+                            </div>
+                        `;
+                    });
+            }
+        }
+
+        function loadChat(chatId) {
+            console.log('Loading chat:', chatId);
+            // Implementation to load specific chat
+        }
+
+        function viewRiskReport(reportId) {
+            console.log('Viewing risk report:', reportId);
+            
+            // Show the modal
+            document.getElementById('riskAssessmentModal').style.display = 'block';
+            
+            // Fetch the risk assessment report
+            fetch(`/api/risk-assessment/${currentConversationId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.report) {
+                        // Convert markdown to HTML
+                        const htmlContent = convertMarkdownToHTML(data.report);
+                        document.getElementById('riskAssessmentContent').innerHTML = htmlContent;
+                    } else {
+                        document.getElementById('riskAssessmentContent').innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #666;">
+                                <h3>No risk assessment available</h3>
+                                <p>Please generate a risk assessment first by asking the AI assistant.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching risk assessment:', error);
+                    document.getElementById('riskAssessmentContent').innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #d32f2f;">
+                            <h3>Error loading risk assessment</h3>
+                            <p>Please try again later.</p>
+                        </div>
+                    `;
+                });
+        }
+        
+        function closeRiskAssessmentModal() {
+            document.getElementById('riskAssessmentModal').style.display = 'none';
+        }
+        
+        // Convert markdown to HTML
+        function convertMarkdownToHTML(markdown) {
+            // Basic markdown to HTML conversion
+            let html = markdown
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/^\* (.+)/gim, '<li>$1</li>')
+                .replace(/^- (.+)/gim, '<li>$1</li>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            // Wrap lists
+            html = html.replace(/(<li>.*<\/li>)/s, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Wrap in paragraphs
+            if (!html.startsWith('<')) {
+                html = '<p>' + html + '</p>';
+            }
+            
+            // Create info blocks for key information
+            html = html.replace(/(<strong>Company Name:<\/strong>[^<]*<br>)(<strong>Website:<\/strong>[^<]*<br>)(<strong>NAICS Code:<\/strong>[^<]*<br>)(<strong>Embroker Class Code:<\/strong>[^<]*<br>)(<strong>Summary of Operations:<\/strong>[^<]*)/g, 
+                '<div class="info-block">$1$2$3$4$5</div>');
+            
+            return html;
+        }
+
+        // Initialize sidebar content
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChatHistory();
+            loadRiskReports();
+            
+            // Refresh risk reports periodically
+            setInterval(loadRiskReports, 30000); // Every 30 seconds
+        });
+    </script>
+</body>
+</html>

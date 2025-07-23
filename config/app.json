@@ -1,0 +1,16 @@
+{
+  "name": "AI Insurance Chatbot",
+  "description": "AI-powered insurance chatbot with smart escalation and vector knowledge base",
+  "keywords": ["flask", "ai", "chatbot", "insurance"],
+  "website": "https://github.com/replit/ai-insurance-chatbot",
+  "repository": "https://github.com/replit/ai-insurance-chatbot",
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "scripts": {
+    "postdeploy": "echo 'Deployment complete'"
+  }
+}
