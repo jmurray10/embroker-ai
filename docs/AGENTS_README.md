@@ -45,10 +45,10 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 **Purpose**: Primary customer-facing AI that handles all insurance-related queries.
 
 **Key Functions**:
-- `process_message()`: Main entry point for processing user messages
-- `search_insurance_knowledge()`: Searches vector databases (Pinecone/OpenAI) for relevant information
+- `process_message()`: Main async entry point for processing user messages
+- `_search_knowledge_wrapper()`: Searches vector databases (Pinecone/OpenAI) for relevant information
 - `_create_function_tools()`: Defines available tools like web search and underwriting analysis
-- `chat()`: Generates responses using GPT-4 with retrieved context
+- `_search_vector_store()` & `_search_pinecone()`: Handles vector database queries
 
 **Capabilities**:
 - Multi-source knowledge retrieval (vector stores, knowledge base)
@@ -65,10 +65,11 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 **Purpose**: Fetches and analyzes company information from external sources.
 
 **Key Functions**:
-- `analyze_company()`: Main analysis function
-- `_fetch_naic_classification()`: Retrieves NAIC industry classification
-- `_process_classification_response()`: Processes API responses
-- Background caching for performance optimization
+- `get_analysis()`: Main analysis function that retrieves company data
+- `_analyze_via_website()`: Analyzes company using website URL
+- `_analyze_via_company_name()`: Analyzes company using name only
+- `_format_analysis()`: Formats API responses into readable summaries
+- `start_background_analysis()`: Initiates background thread for async processing
 
 **Capabilities**:
 - NAIC API integration for industry classification
@@ -103,10 +104,10 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 **Purpose**: Guides users through the insurance application process conversationally.
 
 **Key Functions**:
-- `start_application()`: Initiates new application session
-- `process_application_response()`: Handles user inputs field by field
-- `_validate_field()`: Ensures data quality and completeness
-- `_generate_final_summary()`: Creates application summary for review
+- `can_handle_query()`: Determines if the message is application-related
+- `process_application_query()`: Main function for handling application queries
+- `_get_application_instructions()`: Returns agent's specialized instructions
+- `get_agent_status()`: Returns agent health and configuration status
 
 **Application Sections**:
 1. Company Profile (name, website, description, revenue)
@@ -127,9 +128,9 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 
 **Key Functions**:
 - `analyze_underwriting_eligibility()`: Main underwriting decision function
-- Risk factor assessment
-- Eligibility determination
-- Premium estimation guidance
+- `get_underwriting_decision()`: Returns structured underwriting decision
+- Risk factor assessment based on industry and company data
+- Eligibility determination with clear reasoning
 
 **Decision Types**:
 - **Accept**: Meets all criteria, standard terms
@@ -148,11 +149,12 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 **Purpose**: Asynchronously monitors all conversations for escalation triggers.
 
 **Key Functions**:
-- `add_conversation_event()`: Non-blocking event addition
-- `_monitoring_loop()`: Continuous background monitoring
+- `add_conversation_event()`: Non-blocking event addition to monitoring queue
+- `_monitoring_loop()`: Continuous background monitoring thread
 - `_analyze_conversation_event()`: AI-powered conversation analysis
-- `_evaluate_escalation_criteria()`: Determines escalation need
-- `_generate_escalation_signal()`: Creates escalation alerts
+- `_evaluate_escalation_criteria()`: Determines escalation need based on multiple factors
+- `_generate_escalation_signal()`: Creates escalation alerts with confidence scores
+- `get_conversation_status()`: Returns current status and analytics for a conversation
 
 **Monitoring Criteria**:
 - User frustration indicators
@@ -190,10 +192,10 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 **Purpose**: Handles the escalation process to human specialists.
 
 **Key Functions**:
-- `create_escalation()`: Main escalation orchestration
-- `_analyze_escalation_need()`: Determines type and priority
-- `_send_slack_notification()`: Notifies appropriate team
-- `_generate_customer_response()`: Creates customer-facing messages
+- `create_escalation()`: Main escalation orchestration function
+- `get_escalation_analysis()`: Analyzes conversation to determine escalation details
+- `notify_specialists()`: Sends notifications via Slack integration
+- `get_customer_response()`: Generates appropriate customer-facing messages
 
 **Escalation Types**:
 - UNDERWRITING_REVIEW

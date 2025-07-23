@@ -78,3 +78,6 @@ test_*.py
 __tests__/
 *.test.py
 test/
+PROJECT_REVIEW_REPORT.md
+.dockerignore
+.gitignore

@@ -3,11 +3,14 @@
 ## Overview
 This document provides a comprehensive list of all libraries and dependencies used in the AI Insurance Chatbot project, along with their purposes and current versions.
 
+## Important Note
+This documentation has been updated to reflect the actual versions in requirements.txt. The primary discrepancy from the original documentation is the OpenAI library version (v1.12.0 instead of the documented v1.86.0). All other version numbers now match the actual implementation.
+
 ## Core AI & Machine Learning Libraries
 
-### OpenAI (v1.86.0)
+### OpenAI (v1.12.0)
 - **Purpose**: Primary AI library for chat completions, embeddings, and intelligent agent interactions
-- **Current Version**: 1.86.0 (Latest available: 1.97.1)
+- **Current Version**: 1.12.0 (Note: Documentation referenced v1.86.0, but actual implementation uses v1.12.0)
 - **Models Used**:
   - `gpt-4.1-2025-04-14` - Main reasoning model (latest)
   - `gpt-4o` - Optimized GPT-4 for faster responses
@@ -17,8 +20,9 @@ This document provides a comprehensive list of all libraries and dependencies us
   - `text-embedding-ada-002` - Legacy embedding model
 - **Usage**: All agent implementations, vector search, knowledge retrieval
 
-### Pinecone
+### Pinecone (v3.0.0)
 - **Purpose**: Vector database for semantic search and knowledge retrieval
+- **Current Version**: 3.0.0 (pinecone-client)
 - **Features**:
   - High-performance similarity search
   - Scalable vector storage
@@ -27,11 +31,12 @@ This document provides a comprehensive list of all libraries and dependencies us
 
 ## Web Framework & Extensions
 
-### Flask
+### Flask (v3.0.0)
 - **Purpose**: Core web application framework
+- **Current Version**: 3.0.0
 - **Extensions Used**:
-  - **Flask-SocketIO**: Real-time bidirectional communication for chat
-  - **Flask-SQLAlchemy**: Database ORM integration
+  - **Flask-SocketIO (v5.3.5)**: Real-time bidirectional communication for chat
+  - **Flask-SQLAlchemy (v3.1.1)**: Database ORM integration
 - **Features**:
   - RESTful API endpoints
   - Template rendering
@@ -44,22 +49,25 @@ This document provides a comprehensive list of all libraries and dependencies us
 
 ## Database & ORM
 
-### SQLAlchemy
+### SQLAlchemy (v2.0.23)
 - **Purpose**: SQL toolkit and Object-Relational Mapping
+- **Current Version**: 2.0.23
 - **Features**:
   - Database abstraction
   - Model definitions
   - Query builder
 - **Models**: User, Conversation, Message
 
-### PostgreSQL (Optional)
+### PostgreSQL (v2.9.9)
 - **Purpose**: Production database for conversation persistence
+- **Current Version**: 2.9.9 (psycopg2-binary)
 - **Connection**: Via DATABASE_URL environment variable
 
 ## Communication & Integration
 
-### Slack SDK
+### Slack SDK (v3.26.1)
 - **Purpose**: Integration with Slack for human agent escalation
+- **Current Version**: 3.26.1 (slack-sdk)
 - **Components**:
   - **slack_sdk**: Core SDK for Slack API interactions
   - **Socket Mode**: Real-time event handling
@@ -70,8 +78,9 @@ This document provides a comprehensive list of all libraries and dependencies us
   - Interactive button components
   - Thread management
 
-### Requests
+### Requests (v2.31.0)
 - **Purpose**: HTTP library for API calls
+- **Current Version**: 2.31.0
 - **Usage**: External API integrations (NAIC classification API)
 
 ## Async & Concurrency
@@ -92,12 +101,28 @@ This document provides a comprehensive list of all libraries and dependencies us
 
 ## Utilities & Support
 
-### python-dotenv
+### python-dotenv (v1.0.0)
 - **Purpose**: Environment variable management
+- **Current Version**: 1.0.0
 - **Usage**: Loading .env file for API keys and configuration
 
+### Additional HTTP Libraries
+- **httpx (v0.23.3)**: Modern HTTP client with async support
+- **aiohttp (v3.9.1)**: Asynchronous HTTP client/server framework
+- **urllib3 (v2.1.0)**: HTTP library with thread-safe connection pooling
+
+### Tokenization & Text Processing
+- **tiktoken (v0.5.2)**: OpenAI's tokenizer for counting tokens in text
+
+### Development Tools
+- **gunicorn (v21.2.0)**: Python WSGI HTTP Server for production
+- **pytest (v7.4.3)**: Testing framework
+- **pytest-asyncio (v0.21.1)**: Async test support
+- **black (v23.12.1)**: Code formatter
+- **flake8 (v6.1.0)**: Style guide enforcement
+
 ### json
-- **Purpose**: JSON data serialization/deserialization
+- **Purpose**: JSON data serialization/deserialization (built-in)
 - **Usage**: API responses, configuration, message formatting
 
 ### uuid
