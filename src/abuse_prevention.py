@@ -167,6 +167,8 @@ Respond with JSON:
                 # If they've been mostly on-topic, give them another chance
                 message = self._get_final_warning(analysis)
         
+        # IMPORTANT: We still process their message even with a warning!
+        # The warning is just prepended to our response to guide them back
         return (True, message)  # Still allow the message but with warning
 
     def _get_friendly_redirect(self, analysis: Dict) -> str:

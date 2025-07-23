@@ -104,14 +104,21 @@ Add CSS for warnings:
 
 ## How It Works
 
+### Important: Off-Topic Messages Are Still Processed!
+
+The system is designed to **maintain conversational flow**. When someone asks an off-topic question:
+1. **We still answer their question**
+2. We add a gentle reminder about our insurance focus
+3. We only block after persistent abuse (3+ warnings AND <30% on-topic)
+
 ### Topic Analysis Flow
 1. User sends message
 2. Quick keyword check for insurance terms
 3. If ambiguous, AI analyzes topic relevance
 4. Track topic in conversation history
-5. Allow with warning if off-topic (up to 3 times)
-6. Calculate overall conversation relevance
-7. Only limit if persistent off-topic behavior
+5. **Process message normally** but add warning if off-topic
+6. Calculate overall conversation relevance (last 20 messages)
+7. Only block if persistent off-topic behavior AND low relevance ratio
 
 ### Example Interactions
 
@@ -121,28 +128,43 @@ User: "What cyber coverage do I need for my SaaS startup?"
 Bot: [Normal response - no warnings]
 ```
 
-**First Off-Topic:**
+**Natural Conversation Flow (Allowed):**
+```
+User: "I run a tech startup"
+Bot: "Great! I can help you understand insurance needs for tech startups..."
+User: "We just raised $5M in funding"
+Bot: "Congratulations! With new funding, you'll want to consider D&O insurance..."
+User: "Thanks! BTW, how's the weather where you are?"
+Bot: "I appreciate the friendly chat! While I can't experience weather as an AI, 
+      I'm here to help with your insurance needs. Speaking of which, weather-related 
+      risks might be covered under your property insurance..." 
+      [Smoothly redirects back while maintaining conversational tone]
+```
+
+**First Off-Topic Warning (Still Answers):**
 ```
 User: "Can you help me write Python code?"
-Bot: "I notice you're asking about Python code. I'm specifically designed to help with insurance and risk management questions for businesses. 
+Bot: "I notice you're asking about Python code. I'm specifically designed to help 
+     with insurance and risk management questions for businesses. 
 
-How can I help you with:
-• Business insurance coverage recommendations
-• Risk assessment for your company
-• Understanding different policy types
-• Embroker products and services
-
-What insurance or risk management topic can I assist you with today?
-
-[Continues to answer if user insists, but counts as warning]"
+     How can I help you with:
+     • Business insurance coverage recommendations
+     • Risk assessment for your company
+     • Understanding different policy types
+     
+     ---
+     
+     [STILL PROVIDES SOME HELP]: While I'm focused on insurance, I understand 
+     you're looking for coding help. You might want to try specialized coding 
+     assistants for that. Now, does your tech company need E&O coverage?"
 ```
 
-**Mixed Conversation (Allowed):**
+**Persistent Off-Topic (After 3+ warnings AND <30% insurance content):**
 ```
-User: "What's D&O insurance?"
-Bot: [Explains D&O]
-User: "Thanks. BTW, what's 2+2?"
-Bot: [Might give gentle redirect but allows it since conversation is mostly on-topic]
+User: [Asks 10th homework question in a row]
+Bot: "I appreciate your interest, but I need to maintain focus on insurance 
+     and risk management topics to best serve all users..."
+     [This is the ONLY time we actually block]
 ```
 
 ## Configuration
