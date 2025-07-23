@@ -14,6 +14,7 @@ services:
       
       # OpenAI configuration
       - POC_OPENAI_API=${POC_OPENAI_API}
+      - OPENAI_VECTOR_STORE_ID=${OPENAI_VECTOR_STORE_ID}
       - OPENAI_MONITORING_KEY=${OPENAI_MONITORING_KEY:-${POC_OPENAI_API}}
       
       # Pinecone configuration
