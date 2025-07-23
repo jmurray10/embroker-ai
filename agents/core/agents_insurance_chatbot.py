@@ -189,44 +189,6 @@ class InsuranceKnowledgeAgent:
             {
                 "type": "function",
                 "function": {
-                    "name": "start_insurance_application",
-                    "description": "Begin a conversational insurance application process for Tech E&O coverage",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "company_name": {
-                                "type": "string",
-                                "description": "Company name for the application"
-                            },
-                            "applicant_name": {
-                                "type": "string",
-                                "description": "Name of the person completing the application"
-                            }
-                        },
-                        "required": ["company_name", "applicant_name"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "continue_insurance_application",
-                    "description": "Continue with the current application process using user's response",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "response": {
-                                "type": "string",
-                                "description": "User's response to the current application question"
-                            }
-                        },
-                        "required": ["response"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
                     "name": "search_embroker_knowledge",
                     "description": "Search enhanced Embroker knowledge base for specific product information, policies, and detailed coverage questions",
                     "parameters": {
@@ -251,8 +213,6 @@ class InsuranceKnowledgeAgent:
             "analyze_underwriting_criteria": self._analyze_underwriting_wrapper,
             "get_company_analysis": self._get_company_analysis,
             "escalate_to_underwriter": self._escalate_conversation,
-            "start_insurance_application": self._start_application_wrapper,
-            "continue_insurance_application": self._continue_application_wrapper,
             "generate_risk_assessment_report": lambda: self._generate_risk_report_wrapper(),
             "search_embroker_knowledge": self._search_embroker_knowledge_wrapper
         }
@@ -436,54 +396,84 @@ class InsuranceKnowledgeAgent:
     
     def _get_agent_instructions(self) -> str:
         """Get comprehensive agent instructions"""
-        return """You are Embroker AI, a friendly insurance broker helping customers find the right coverage.
+        return """You are Embroker AI, a professional insurance advisor helping businesses find the right coverage.
 
-🧠 CONVERSATION CONTEXT AWARENESS:
+CONVERSATION STYLE:
+• Be friendly and approachable while maintaining professionalism
+• Respond naturally to greetings and general conversation
+• Only discuss insurance when the user asks about it or shows interest
+• Be knowledgeable and confident when insurance topics arise
+
+GREETING RESPONSES:
+• Respond to greetings naturally: "Hello! How can I help you today?"
+• Don't immediately launch into product information
+• Wait for the user to express their needs or ask questions
+• Keep initial responses brief and conversational
+
+PRODUCT QUESTIONS:
+• ONLY when specifically asked about offerings/products, list core Embroker products:
+  - Tech E&O / Professional Liability
+  - Cyber Liability
+  - Directors & Officers (D&O)
+  - Employment Practices Liability (EPLI)
+  - General Liability
+  - Workers Compensation
+• Use knowledge base to provide specific details about each product
+• Don't list products unless explicitly asked
+
+HANDLING CONVERSATIONS:
+• Let the conversation flow naturally
+• Only bring up insurance if the user shows interest
+• Be helpful without being pushy about products
+
+CONVERSATION CONTEXT AWARENESS:
 • ALWAYS read the ENTIRE conversation history to understand context
 • DETECT when the user switches topics and respond to the NEW topic
 • If the user asks about something different, focus on their CURRENT question
 • Don't get stuck on previous topics - be adaptive and responsive
 • Track the conversation flow but prioritize the most recent user intent
 
-🔍 MANDATORY VECTOR DATABASE CONSULTATION:
+MANDATORY VECTOR DATABASE CONSULTATION:
 • ALWAYS use search_insurance_knowledge for EVERY customer question before responding
 • Vector database contains ALL Embroker product information and MUST be consulted first
 • Never provide general insurance advice without first searching our knowledge base
 • Use vector search results as the PRIMARY source for ALL responses
 • Only supplement with general knowledge if vector search confirms it
 
-RESPONSE STYLE - Sound Like a Human Broker:
-• Keep responses short and conversational (50-100 words max) for general questions
-• EXCEPTION: For claims examples, provide detailed 200-400 word responses with:
+RESPONSE STYLE:
+• Keep responses concise and clear (50-100 words for general questions)
+• For claims examples, provide detailed information (200-400 words) including:
   - Specific scenario description
   - Coverage type involved
   - Claim amount ranges
   - Resolution details
   - Key takeaways for the customer
-• Sound natural and human, not formal or technical
-• Be a helpful broker, not an underwriter
-• Use simple, everyday language clients understand
-• Chat like you're having a real conversation
+• Use clear, professional language that's easy to understand
+• Focus on being helpful and informative
+• Maintain a consultative approach
 
 EMBROKER POSITIONING:
-• Always position Embroker as the best choice
-• Never suggest competitors
-• Highlight our digital platform and tech expertise
-• We specialize in tech companies and modern businesses
+• Present Embroker as a leading insurance provider
+• Highlight our digital platform and technology expertise
+• Emphasize our specialization in tech companies and modern businesses
+• Focus on our streamlined, efficient process
 
 WORKFLOW FOR EVERY QUESTION:
 1. ANALYZE: Review full conversation history to understand context and topic changes
 2. DETECT: Identify if the user has switched topics or asked something new
-3. SEARCH: Use search_insurance_knowledge to check our database for the CURRENT topic
-4. RESPOND: Base your response on vector results for the CURRENT question
-5. ADAPT: Stay flexible and responsive to topic changes
+3. ACKNOWLEDGE: If off-topic, warmly acknowledge before redirecting
+4. SEARCH: Use search_insurance_knowledge to check our database for the CURRENT topic
+5. RESPOND: Base your response on vector results for the CURRENT question
+6. ADAPT: Stay flexible and responsive to topic changes
 
 TOOLS AVAILABLE:
 • search_insurance_knowledge for policy details (MANDATORY FIRST STEP)
 • search_web_information for current trends
 • analyze_underwriting_criteria for risk assessment
-• start_insurance_application when ready to apply
 • generate_risk_assessment_report for comprehensive analysis
+• get_company_analysis for company background
+• escalate_to_underwriter for complex cases
+• search_embroker_knowledge for enhanced product info
 
 CRITICAL: The vector database contains specific coverage limits, costs, eligibility criteria, and product details that MUST be consulted before any response. Never rely on general AI knowledge when our proprietary knowledge base has the answer.
 
@@ -707,45 +697,6 @@ Provide comprehensive underwriting analysis including:
             print(f"Escalation error: {e}")
             return f"Escalation request submitted. Case ID: ESC_{int(os.time())}"
 
-    def _start_application_wrapper(self, company_name: str, applicant_name: str) -> str:
-        """Start conversational insurance application"""
-        try:
-            from agents.customer_service.conversational_application_agent import get_conversational_application_agent
-            
-            agent = get_conversational_application_agent()
-            conversation_id = getattr(self, 'current_conversation_id', 'unknown')
-            
-            result = agent.start_application(conversation_id, company_name, applicant_name)
-            
-            if result["status"] == "started":
-                return result["message"]
-            else:
-                return f"Unable to start application: {result.get('message', 'Unknown error')}"
-                
-        except Exception as e:
-            print(f"Application start error: {e}")
-            return "I'm having trouble starting the application process. Please try again."
-
-    def _continue_application_wrapper(self, response: str) -> str:
-        """Continue conversational insurance application"""
-        try:
-            from agents.customer_service.conversational_application_agent import get_conversational_application_agent
-            
-            agent = get_conversational_application_agent()
-            conversation_id = getattr(self, 'current_conversation_id', 'unknown')
-            
-            result = agent.process_application_response(conversation_id, response)
-            
-            if result["status"] in ["continue", "clarification"]:
-                return result["message"]
-            elif result["status"] == "completed":
-                return result["message"]
-            else:
-                return f"Application error: {result.get('message', 'Unknown error')}"
-                
-        except Exception as e:
-            print(f"Application continue error: {e}")
-            return "I'm having trouble processing your response. Please try again."
     
     def _generate_risk_report_wrapper(self) -> str:
         """Generate comprehensive risk assessment report using stored NAIC data"""
@@ -1119,11 +1070,18 @@ Contact our underwriting team for detailed quotes and policy customization based
             is_claims_example = any(keyword in message.lower() for keyword in ['claim example', 'claims example', 'example of a claim', 'example claim'])
             
             # Make API call with tools
+            # Force tool use ONLY for specific product/offering questions
+            force_tool_use = any(keyword in message.lower() for keyword in [
+                'what do you offer', 'what products', 'what coverage', 'what insurance',
+                'your products', 'your offerings', 'services do you', 'solutions do you',
+                'tell me about your', 'list your', 'show me your'
+            ])
+            
             response = self.openai_client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 tools=self.tools,
-                tool_choice="auto",
+                tool_choice={"type": "function", "function": {"name": "search_insurance_knowledge"}} if force_tool_use else "auto",
                 temperature=0.7,
                 max_tokens=800 if is_claims_example else None  # Allow longer responses for claims examples
             )

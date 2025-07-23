@@ -76,7 +76,7 @@ User Request (e.g., "I need a quote")
 
 ## Detailed Agent Descriptions
 
-### 1. Main Insurance Agent (`agents/agents_insurance_chatbot.py`)
+### 1. Main Insurance Agent (`agents/core/agents_insurance_chatbot.py`)
 
 **Primary Role**: Central hub for all insurance queries and agent orchestration
 
@@ -102,7 +102,7 @@ class InsuranceKnowledgeAgent:
 5. Generates comprehensive response
 6. Sends to Parallel Monitoring Agent
 
-### 2. Parallel Monitoring Agent (PMA) (`agents/parallel_monitoring_agent.py`)
+### 2. Parallel Monitoring Agent (PMA) (`agents/monitoring/parallel_monitoring_agent.py`)
 
 **Primary Role**: Asynchronous conversation monitoring for quality and escalation needs
 
@@ -136,7 +136,7 @@ class ParallelMonitoringAgent:
 4. Evaluates escalation criteria
 5. Generates escalation signals when needed
 
-### 3. Background Agent (`agents/background_agent.py`)
+### 3. Background Agent (`agents/analysis/background_agent.py`)
 
 **Primary Role**: Company information retrieval and analysis
 
@@ -161,7 +161,7 @@ class CompanyAnalysisAgent:
 4. Caches results for performance
 5. Returns structured data
 
-### 4. Risk Assessment Agent (`agents/risk_assessment_agent.py`)
+### 4. Risk Assessment Agent (`agents/analysis/risk_assessment_agent.py`)
 
 **Primary Role**: Generate comprehensive risk assessment reports
 
@@ -189,7 +189,7 @@ class RiskAssessmentAgent:
    - General Liability
 4. Industry-Specific Claims Examples
 
-### 5. Application Agent (`agents/application_agent.py`)
+### 5. Application Agent (`agents/customer_service/application_agent.py`)
 
 **Primary Role**: Guide users through insurance application process
 
@@ -215,7 +215,7 @@ class ApplicationAgent:
 5. Track progress
 6. Generate summary
 
-### 6. Underwriting Agent (`agents/underwriting_agent.py`)
+### 6. Underwriting Agent (`agents/analysis/underwriting_agent.py`)
 
 **Primary Role**: Automated underwriting decisions
 
@@ -240,7 +240,7 @@ class UnderwritingAgent:
 4. Make preliminary decision
 5. Provide detailed reasoning
 
-### 7. Escalation Agent (`agents/escalation_agent.py`)
+### 7. Escalation Agent (`agents/monitoring/escalation_agent.py`)
 
 **Primary Role**: Manage escalations to human specialists
 
@@ -265,7 +265,7 @@ class EscalationAgent:
 - CUSTOMER_COMPLAINT → customer_success
 - TECHNICAL_ISSUE → technical_support
 
-### 8. Conversation Coordinator (`agents/conversation_coordinator.py`)
+### 8. Conversation Coordinator (`agents/core/conversation_coordinator.py`)
 
 **Primary Role**: Session management and Slack integration
 
@@ -290,7 +290,7 @@ class ConversationCoordinator:
 4. Route messages bidirectionally
 5. Track specialist presence
 
-### 9. Risk Formatter Agent (`agents/risk_formatter_agent.py`)
+### 9. Risk Formatter Agent (`agents/formatting/risk_formatter_agent.py`)
 
 **Primary Role**: Format risk reports into professional HTML
 

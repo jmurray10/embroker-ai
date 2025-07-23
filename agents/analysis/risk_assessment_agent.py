@@ -235,7 +235,9 @@ class RiskAssessmentAgent:
                 messages=[
                     {
                         "role": "system",
-                        "content": """You are a senior risk manager at Embroker reviewing a company classification report. 
+                        "content": """You are a professional senior risk manager at Embroker reviewing a company classification report. 
+Generate comprehensive risk assessments with clear, professional language.
+
 Generate a COMPREHENSIVE risk assessment report that includes:
 
 1. EXECUTIVE SUMMARY OF CLASSIFICATION DATA WITH OPERATIONS SUMMARY

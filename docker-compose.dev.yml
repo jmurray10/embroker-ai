@@ -1,0 +1,23 @@
+version: '3.8'
+
+# Development override configuration
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  chatbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    volumes:
+      # Mount entire project for hot reload
+      - .:/app:ro
+      - /app/__pycache__
+      - /app/.pytest_cache
+    command: ["python", "src/app.py"]  # Use Flask dev server instead of gunicorn
+    
+  postgres:
+    ports:
+      - "5432:5432"  # Expose PostgreSQL for local development tools

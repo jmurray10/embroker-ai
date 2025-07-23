@@ -203,14 +203,14 @@ class EscalationAgent:
             
             # Format escalation message
             priority_emoji = {
-                EscalationPriority.LOW: "🟢",
-                EscalationPriority.MEDIUM: "🟡", 
-                EscalationPriority.HIGH: "🟠",
-                EscalationPriority.URGENT: "🔴"
+                EscalationPriority.LOW: "[LOW]",
+                EscalationPriority.MEDIUM: "[MEDIUM]", 
+                EscalationPriority.HIGH: "[HIGH]",
+                EscalationPriority.URGENT: "[URGENT]"
             }
             
             message = f"""
-{priority_emoji.get(escalation.priority, "⚪")} *New Escalation - {escalation.priority.value.upper()}*
+{priority_emoji.get(escalation.priority, "[UNKNOWN]")} *New Escalation - {escalation.priority.value.upper()}*
 
 *Type:* {escalation.escalation_type.value.replace('_', ' ').title()}
 *Conversation ID:* {escalation.conversation_id}

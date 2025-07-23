@@ -452,8 +452,8 @@ class ConversationalApplicationAgent:
             summary = f"""
 **Application Summary for {application_state.company_name}**
 
-📊 **Completion Status**: {completeness:.0f}% complete
-🎯 **Quote Status**: {quote_status}
+**Completion Status**: {completeness:.0f}% complete
+**Quote Status**: {quote_status}
 
 **Collected Information**:
 """
@@ -548,7 +548,7 @@ Validation rules:
             response = self.openai_client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are an insurance application assistant. Validate responses helpfully and conversationally."},
+                    {"role": "system", "content": "You are a professional insurance application assistant. Validate responses helpfully and maintain a friendly but professional tone."},
                     {"role": "user", "content": validation_prompt}
                 ],
                 temperature=0.1
@@ -603,7 +603,15 @@ Validation rules:
             next_section.current_field_index = 0
             
             next_field = next_section.fields[0]
-            section_intro = f"\n**{next_section.name}**\nNow let's move on to {next_section.name.lower()}.\n\n"
+            # Add personality to section transitions
+            section_intros = {
+                "Technology & Security": "\n**Technology & Security**\nNow let's discuss your technology infrastructure and security measures.\n\n",
+                "Data & Privacy": "\n**Data & Privacy**\nNext, we'll cover how your company handles data and privacy requirements.\n\n",
+                "Risk Assessment": "\n**Risk Assessment**\nThis section helps us understand potential risks to your business.\n\n",
+                "Financial Information": "\n**Financial Information**\nFinally, we'll need some financial information to complete your application.\n\n"
+            }
+            
+            section_intro = section_intros.get(next_section.name, f"\n**{next_section.name}**\nMoving on to the {next_section.name.lower()} section.\n\n")
             question = self._generate_question_with_context(next_field, application_state)
             
             return section_intro + question
@@ -634,7 +642,7 @@ Keep it brief (1-2 sentences) and helpful. If the NAIC data doesn't provide rele
                 response = self.openai_client.chat.completions.create(
                     model=self.model,
                     messages=[
-                        {"role": "system", "content": "You are an insurance application assistant providing helpful context."},
+                        {"role": "system", "content": "You are a professional insurance application assistant. Provide helpful context in a clear and friendly manner."},
                         {"role": "user", "content": context_prompt}
                     ],
                     temperature=0.1,

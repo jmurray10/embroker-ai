@@ -10,6 +10,7 @@ import time
 import asyncio
 from dotenv import load_dotenv
 from src.models import db, User, Conversation, Message
+from sqlalchemy import text
 
 # Load environment variables
 load_dotenv()
@@ -70,7 +71,15 @@ socket_handler = None
 socket_thread = None
 
 # Initialize OpenAI client for escalation analysis
-openai_client = OpenAI(api_key=os.getenv("POC_OPENAI_API"))
+# Work around httpx proxy issue
+import httpx
+api_key = os.getenv("POC_OPENAI_API")
+if api_key:
+    http_client = httpx.Client()
+    openai_client = OpenAI(api_key=api_key, http_client=http_client)
+else:
+    openai_client = None
+    print("Warning: POC_OPENAI_API not set, some features may not work")
 
 def start_socket_mode():
     """Initialize and start Socket Mode handler in background thread"""
@@ -251,6 +260,33 @@ def format_coverage_card(items):
     
     card_html += '</div>\n'
     return card_html
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Docker and monitoring"""
+    try:
+        # Check database connection if configured
+        if database_url:
+            db.session.execute(text('SELECT 1'))
+        
+        # Check Pinecone connection
+        pinecone_status = "not configured"
+        if os.getenv("PINECONE_API_KEY"):
+            pinecone_status = "configured"
+        
+        return jsonify({
+            "status": "healthy",
+            "service": "embroker-insurance-chatbot",
+            "database": "connected" if database_url else "not configured",
+            "pinecone": pinecone_status,
+            "timestamp": datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 503
 
 @app.route('/')
 def index():

@@ -8,7 +8,7 @@ User registers with:
 ```
 
 ## 2. BACKGROUND AGENT EXTRACTS DATA
-**File:** `agents/background_agent.py`
+**File:** `agents/analysis/background_agent.py`
 
 ```python
 # Extract domain from email
@@ -76,7 +76,7 @@ classification_data = analysis_json.get('raw_classification_response')
 ```
 
 ## 7. RISK ASSESSMENT AGENT USES DATA
-**File:** `agents/risk_assessment_agent.py` line 156
+**File:** `agents/analysis/risk_assessment_agent.py` line 156
 
 ```python
 def generate_risk_assessment_report(self, classification_data: Dict[str, Any], company_name: str):

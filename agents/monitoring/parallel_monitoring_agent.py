@@ -212,16 +212,16 @@ class ParallelMonitoringAgent:
             if escalation_needed:
                 self._generate_escalation_signal(event, analysis, state)
                 
-        # Update analytics
-        self.total_events_processed += 1
-        
-        # Track conversation timing
-        if event.conversation_id not in state:
-            state['start_time'] = event.timestamp
-        state['last_activity'] = event.timestamp
-        
-        # Store conversation analytics
-        self._update_conversation_analytics(event, analysis)
+            # Update analytics
+            self.total_events_processed += 1
+            
+            # Track conversation timing
+            if event.conversation_id not in self.conversation_states:
+                self.conversation_states[event.conversation_id]['start_time'] = event.timestamp
+            self.conversation_states[event.conversation_id]['last_activity'] = event.timestamp
+            
+            # Store conversation analytics
+            self._update_conversation_analytics(event, analysis)
                 
         except Exception as e:
             print(f"PMA: Error analyzing event: {e}")
@@ -839,33 +839,33 @@ class ParallelMonitoringAgent:
             if self.response_times:
                 avg_time = statistics.mean(self.response_times)
                 if avg_time > 5000:  # > 5 seconds
-                    insights.append(f"⚠️ High response times detected (avg: {avg_time:.0f}ms)")
+                    insights.append(f"High response times detected (avg: {avg_time:.0f}ms)")
                 elif avg_time < 2000:  # < 2 seconds
-                    insights.append(f"✅ Excellent response times (avg: {avg_time:.0f}ms)")
+                    insights.append(f"Excellent response times (avg: {avg_time:.0f}ms)")
             
             # Escalation insights
             escalation_rate = len(self.escalation_history) / max(len(self.conversation_states), 1)
             if escalation_rate > 0.2:  # > 20%
-                insights.append(f"📈 High escalation rate: {escalation_rate:.1%}")
+                insights.append(f"High escalation rate: {escalation_rate:.1%}")
             elif escalation_rate < 0.05:  # < 5%
-                insights.append(f"✅ Low escalation rate: {escalation_rate:.1%}")
+                insights.append(f"Low escalation rate: {escalation_rate:.1%}")
             
             # Satisfaction insights
             satisfaction = self._calculate_satisfaction_score()
             if satisfaction > 0.8:
-                insights.append(f"😊 High user satisfaction: {satisfaction:.1%}")
+                insights.append(f"High user satisfaction: {satisfaction:.1%}")
             elif satisfaction < 0.6:
-                insights.append(f"😟 Low user satisfaction: {satisfaction:.1%}")
+                insights.append(f"Low user satisfaction: {satisfaction:.1%}")
             
             # Activity insights
             if len(self.active_conversations) > 10:
-                insights.append(f"🔥 High activity: {len(self.active_conversations)} active conversations")
+                insights.append(f"High activity: {len(self.active_conversations)} active conversations")
             
             if not insights:
-                insights.append("📊 All metrics within normal ranges")
+                insights.append("All metrics within normal ranges")
                 
         except Exception as e:
-            insights.append(f"❌ Error generating insights: {str(e)}")
+            insights.append(f"Error generating insights: {str(e)}")
             
         return insights
 

@@ -13,7 +13,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
                       │
 ┌─────────────────────┴───────────────────────────────────────┐
 │                  Main Insurance Agent                        │
-│         (agents/agents_insurance_chatbot.py)                 │
+│       (agents/core/agents_insurance_chatbot.py)              │
 │  • Primary conversational interface                          │
 │  • Knowledge retrieval from vector databases                 │
 │  • Response generation with GPT-4                            │
@@ -40,7 +40,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 
 ## Agent Descriptions and Functions
 
-### 1. Main Insurance Agent (`agents/agents_insurance_chatbot.py`)
+### 1. Main Insurance Agent (`agents/core/agents_insurance_chatbot.py`)
 
 **Purpose**: Primary customer-facing AI that handles all insurance-related queries.
 
@@ -60,7 +60,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 - Main reasoning: `gpt-4.1-2025-04-14`
 - Fast operations: `gpt-4o-mini-2024-07-18`
 
-### 2. Background Agent / Company Analysis Agent (`agents/background_agent.py`)
+### 2. Background Agent / Company Analysis Agent (`agents/analysis/background_agent.py`)
 
 **Purpose**: Fetches and analyzes company information from external sources.
 
@@ -76,7 +76,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 - Caching to reduce API calls
 - Background processing for non-blocking operations
 
-### 3. Risk Assessment Agent (`agents/risk_assessment_agent.py`)
+### 3. Risk Assessment Agent (`agents/analysis/risk_assessment_agent.py`)
 
 **Purpose**: Generates detailed, professional risk assessment reports.
 
@@ -98,7 +98,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 3. Coverage Recommendations (Tech E&O, EPLI, D&O, General Liability)
 4. Industry-specific claim examples
 
-### 4. Application Agent (`agents/application_agent.py`)
+### 4. Application Agent (`agents/customer_service/application_agent.py`)
 
 **Purpose**: Guides users through the insurance application process conversationally.
 
@@ -121,7 +121,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 - Progress tracking
 - NAIC integration for industry classification
 
-### 5. Underwriting Agent (`agents/underwriting_agent.py`)
+### 5. Underwriting Agent (`agents/analysis/underwriting_agent.py`)
 
 **Purpose**: Performs automated underwriting analysis and decisions.
 
@@ -143,7 +143,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 - Claims history
 - Compliance status
 
-### 6. Parallel Monitoring Agent (PMA) (`agents/parallel_monitoring_agent.py`)
+### 6. Parallel Monitoring Agent (PMA) (`agents/monitoring/parallel_monitoring_agent.py`)
 
 **Purpose**: Asynchronously monitors all conversations for escalation triggers.
 
@@ -167,7 +167,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 - Sentiment tracking over conversation history
 - Configurable escalation thresholds
 
-### 7. Conversation Coordinator (`agents/conversation_coordinator.py`)
+### 7. Conversation Coordinator (`agents/core/conversation_coordinator.py`)
 
 **Purpose**: Manages conversation sessions and Slack integration.
 
@@ -185,7 +185,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 - Status management (active, escalated, resolved)
 - Persistent storage for recovery
 
-### 8. Escalation Agent (`agents/escalation_agent.py`)
+### 8. Escalation Agent (`agents/monitoring/escalation_agent.py`)
 
 **Purpose**: Handles the escalation process to human specialists.
 
@@ -209,7 +209,7 @@ The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provid
 - Formatted Slack notifications with context
 - Customer communication templates
 
-### 9. Risk Formatter Agent (`agents/risk_formatter_agent.py`)
+### 9. Risk Formatter Agent (`agents/formatting/risk_formatter_agent.py`)
 
 **Purpose**: Transforms raw risk assessment text into polished HTML reports.
 

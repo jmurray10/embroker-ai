@@ -1,16 +1,16 @@
 # Embroker AI Insurance Chatbot
 
-An advanced AI-powered insurance interaction platform that transforms complex insurance processes through intelligent multi-agent communication and innovative technology. Built with Flask, OpenAI GPT-4o, and integrated with real-time external APIs for comprehensive risk assessment and classification.
+An advanced AI-powered insurance interaction platform that transforms complex insurance processes through intelligent multi-agent communication and innovative technology. Built with Flask, OpenAI GPT-4o, Pinecone vector database, and integrated with real-time external APIs for comprehensive risk assessment and classification.
 
-![Embroker AI](https://img.shields.io/badge/AI-Powered-blue) ![Insurance](https://img.shields.io/badge/Industry-Insurance-green) ![Flask](https://img.shields.io/badge/Framework-Flask-red) ![OpenAI](https://img.shields.io/badge/AI-GPT--4o-orange)
+![Embroker AI](https://img.shields.io/badge/AI-Powered-blue) ![Insurance](https://img.shields.io/badge/Industry-Insurance-green) ![Flask](https://img.shields.io/badge/Framework-Flask-red) ![OpenAI](https://img.shields.io/badge/AI-GPT--4o-orange) ![Pinecone](https://img.shields.io/badge/Vector-Pinecone-purple)
 
 ## 🚀 Features
 
 ### Core Capabilities
 - **AI-Powered Chat Interface**: ChatGPT-style conversational interface for natural insurance consultations
 - **Real-Time Risk Assessment**: Automated company analysis and risk evaluation using external classification APIs
-- **Multi-Agent Architecture**: Specialized agents for different insurance domains and processes
-- **Vector Knowledge Base**: OpenAI Vector Store integration for accurate, context-aware responses
+- **Multi-Agent Architecture**: Specialized agents organized by function for different insurance domains
+- **Vector Knowledge Base**: Pinecone-powered insurance knowledge retrieval system
 - **Slack Integration**: Seamless escalation to human specialists with real-time messaging
 - **External API Integration**: Live company classification using https://emb-classification.onrender.com/classify
 
@@ -37,33 +37,46 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────┴───────────────────────────────────────┐
-│                  Multi-Agent System                         │
-│  Insurance Agent • Risk Assessment • Background Analysis    │
+│              Organized Multi-Agent System                   │
+│  Core • Analysis • Customer Service • Monitoring • Format   │
 └─────────────────────┬───────────────────────────────────────┘
                       │
 ┌─────────────────────┼───────────────────────────────────────┐
-│    External APIs    │    Knowledge Base    │    Database    │
-│  • Classification   │  • OpenAI Vector     │  • PostgreSQL  │
-│  • NAICS Lookup     │  • Pinecone Index    │  • Sessions    │
-│  • Company Data     │  • Insurance Docs    │  • Logs        │
+│    External APIs    │  Vector Knowledge Base │   Database    │
+│  • Classification   │  • Pinecone Index      │  • SQLAlchemy │
+│  • NAICS Lookup     │  • Insurance Docs      │  • Sessions   │
+│  • Company Data     │  • Embeddings          │  • SQLite Logs│
 └─────────────────────┴───────────────────────────────────────┘
 ```
 
-### Agent Architecture
-- **Main Insurance Agent** (`agents_insurance_chatbot.py`): Primary customer-facing AI
-- **Background Agent** (`background_agent.py`): Company analysis and classification
-- **Risk Assessment Agent** (`risk_assessment_agent.py`): Professional report generation
-- **Application Agent** (`application_agent.py`): Conversational insurance applications
-- **Escalation Agent** (`escalation_agent.py`): Human specialist coordination
-- **Conversation Coordinator** (`conversation_coordinator.py`): Session and message routing
+### Agent Organization (Updated Structure)
+
+```
+agents/
+├── core/                              # Main orchestration
+│   ├── agents_insurance_chatbot.py    # Primary customer-facing AI
+│   └── conversation_coordinator.py    # Session management
+├── analysis/                          # Business analysis & risk
+│   ├── background_agent.py            # Company analysis
+│   ├── risk_assessment_agent.py       # Risk reports
+│   └── underwriting_agent.py          # Underwriting decisions
+├── customer_service/                  # Application handling
+│   ├── application_agent.py           # Application processing
+│   └── conversational_application_agent.py
+├── monitoring/                        # Real-time monitoring
+│   ├── parallel_monitoring_agent.py   # Conversation monitoring
+│   └── escalation_agent.py            # Human handoff
+└── formatting/                        # Report formatting
+    └── risk_formatter_agent.py        # Professional formatting
+```
 
 ## 🛠️ Technology Stack
 
 ### Backend
 - **Framework**: Flask with SQLAlchemy
-- **AI Models**: OpenAI GPT-4o, o3-mini for enhanced reasoning
-- **Vector Database**: OpenAI Vector Store + Pinecone backup
-- **Database**: PostgreSQL with connection pooling
+- **AI Models**: GPT-4.1-2025-04-14 (primary), GPT-4o-mini-2024-07-18 (fast operations)
+- **Vector Knowledge Base**: Pinecone (insurance-docs-index) with comprehensive Embroker documentation
+- **Database**: PostgreSQL (optional) or SQLite for session storage
 - **Real-time**: WebSocket support for live updates
 
 ### Frontend
@@ -76,21 +89,23 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 - **Slack API**: Socket Mode for real-time specialist communication
 - **Classification API**: External company analysis at https://emb-classification.onrender.com
 - **OpenAI APIs**: Chat completions, embeddings, and vector search
+- **Pinecone**: Primary vector knowledge base with Embroker-specific insurance documentation
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.11+
-- PostgreSQL database
+- PostgreSQL database (optional)
 - OpenAI API key
+- Pinecone API key
 - Slack workspace (optional)
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd embroker-insurance-chatbot
+   git clone https://github.com/jmurray10/embroker-ai.git
+   cd embroker-ai
    ```
 
 2. **Set up environment variables**
@@ -106,13 +121,13 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 
 4. **Initialize database**
    ```bash
-   python -c "from app import app, db; app.app_context().push(); db.create_all()"
+   python -c "from src.app import app, db; app.app_context().push(); db.create_all()"
    ```
 
 5. **Start the application**
    ```bash
    # Development server
-   python app.py
+   python src/app.py
 
    # Production server
    gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app
@@ -124,14 +139,17 @@ An advanced AI-powered insurance interaction platform that transforms complex in
 # Required API Keys
 POC_OPENAI_API=sk-proj-...              # Primary API key for main chat agent
 OPENAI_MONITORING_KEY=sk-proj-...       # Dedicated API key for Parallel Monitoring Agent
+PINECONE_API_KEY=pcsk_...               # Pinecone vector database
 SESSION_SECRET=your-session-secret
 
-# Database
-DATABASE_URL=postgresql://user:pass@host:port/dbname
+# Database (Optional - uses SQLite by default)
+DATABASE_URL=postgresql://user:pass@host:port/dbname  # Optional for production
 
 # Optional Slack Integration
 SLACK_BOT_TOKEN=xoxb-...
+SLACK_APP_TOKEN=xapp-...                # For Socket Mode
 SLACK_ESCALATION_CHANNEL=C08GE53HL85
+SLACK_SIGNING_SECRET=...
 ```
 
 ## 📊 Key Workflows
@@ -144,8 +162,8 @@ Risk Assessment Generation → Professional Report (500-1000 words)
 
 ### 2. Chat Interaction Flow
 ```
-User Message → Vector Knowledge Search → AI Response Generation → 
-Parallel Monitoring → Escalation Decision → Specialist Alert (if needed)
+User Message → Pinecone Knowledge Search → AI Response Generation → 
+Parallel Monitoring → Escalation Decision → Slack Alert (if needed)
 ```
 
 ### 3. Insurance Application Process
@@ -162,12 +180,14 @@ Progress Tracking → Completion Summary → Quote Generation
 - **Output**: NAICS codes, industry classification, confidence scores
 - **Response Time**: 20-40 seconds for comprehensive analysis
 
-### Data Flow
-1. User registers with company email
-2. System extracts domain (e.g., `jeff@embroker.com` → `https://embroker.com`)
-3. Sends `companyName` + `websiteUrl` to classification API
-4. Receives detailed industry analysis with 80%+ confidence
-5. Generates customized risk assessment starting with classification data
+### Vector Knowledge Base Architecture
+- **Pinecone** (`insurance-docs-index`) - Primary Knowledge Base
+  - Embroker-specific insurance documentation
+  - Policy templates and underwriting guidelines
+  - Risk assessment criteria and claim examples
+  - Industry-specific coverage recommendations
+  - Used by all agents for knowledge retrieval
+- **Note**: OpenAI's file_search tool is used internally by some agents for additional context
 
 ## 📈 Performance Metrics
 
@@ -176,33 +196,45 @@ Progress Tracking → Completion Summary → Quote Generation
 - **API Integration**: 30-second external classification processing
 - **Concurrent Users**: Supports multiple simultaneous conversations
 - **Accuracy**: 83%+ confidence in company classifications
+- **Vector Search**: <1 second Pinecone query response with caching
 
 ## 🔧 Development
 
 ### Project Structure
 ```
-├── agents/                     # AI agent implementations
-├── integrations/               # External service integrations
-├── templates/                  # HTML templates
-├── attached_assets/            # Insurance documentation
-├── app.py                     # Main Flask application
-├── models.py                  # Database models
-├── main.py                   # Application entry point
-└── requirements.txt          # Python dependencies
+├── agents/                     # AI agents organized by function
+│   ├── core/                  # Main orchestration agents
+│   ├── analysis/              # Risk and company analysis
+│   ├── customer_service/      # Application handling
+│   ├── monitoring/            # Real-time monitoring
+│   └── formatting/            # Report formatting
+├── integrations/              # External service integrations
+│   ├── rag_pinecone.py       # Pinecone RAG implementation
+│   ├── openai_vector_store.py # OpenAI vector fallback
+│   └── slack_*.py            # Slack integrations
+├── templates/                 # HTML templates
+├── attached_assets/           # Insurance documentation PDFs
+├── src/
+│   ├── app.py               # Main Flask application
+│   ├── models.py            # Database models
+│   └── logger.py            # Logging system
+└── main.py                   # Application entry point
 ```
 
 ### Key Components
-- **Vector Knowledge Base**: Embroker-specific insurance documentation
-- **Logging System**: Comprehensive analytics and error tracking
-- **Session Management**: Persistent conversation state
-- **Mobile Optimization**: Responsive design for all devices
+- **Pinecone Knowledge Base**: Primary vector store with Embroker insurance documentation
+- **Embroker Knowledge Base**: Enhanced wrapper combining Pinecone and OpenAI sources
+- **Logging System**: Comprehensive analytics and error tracking  
+- **Session Management**: Persistent conversation state with coordinator
+- **Background Analysis**: Asynchronous company classification and risk assessment
 
 ## 🔐 Security Features
 
-- **API Key Management**: Separate keys for main system and monitoring
+- **API Key Management**: Separate keys for different services
 - **Session Encryption**: Secure session management
 - **Database Security**: Connection pooling with SSL
 - **Input Validation**: Sanitized user inputs and API responses
+- **Slack Signature Verification**: Ensures webhook security
 
 ## 📱 User Experience
 
@@ -220,7 +252,19 @@ Progress Tracking → Completion Summary → Quote Generation
 
 ## 🚀 Deployment
 
-### Replit Deployment (Recommended)
+### Docker Deployment (Recommended for Local Testing)
+```bash
+# Quick start
+cp .env.docker.example .env
+# Add your API keys to .env
+docker-compose up -d
+
+# Access at http://localhost:5000
+```
+
+See [DOCKER_README.md](./DOCKER_README.md) for detailed Docker instructions.
+
+### Replit Deployment (Cloud)
 1. Connect repository to Replit
 2. Configure environment variables
 3. Use "Start application" workflow for production
@@ -228,7 +272,10 @@ Progress Tracking → Completion Summary → Quote Generation
 
 ### Manual Deployment
 ```bash
-# Production server
+# Install dependencies
+pip install -r requirements.txt
+
+# Production server with workers
 gunicorn --bind 0.0.0.0:5000 --workers 2 --reload main:app
 ```
 
@@ -238,6 +285,7 @@ gunicorn --bind 0.0.0.0:5000 --workers 2 --reload main:app
 - **Performance Tracking**: Response times, token usage, model metrics
 - **Error Management**: Comprehensive logging with severity levels
 - **Conversation Analytics**: User engagement and escalation patterns
+- **Vector Search Analytics**: Query performance and relevance tracking
 
 ## 🤝 Contributing
 
@@ -254,9 +302,10 @@ This project is proprietary software developed for Embroker's insurance technolo
 ## 📞 Support
 
 For technical support or questions about the Embroker AI Insurance Chatbot:
-- Internal documentation: See `replit.md` for detailed technical specifications
+- Internal documentation: See docs/ folder for detailed specifications
 - System status: Monitor workflow logs for real-time system health
 - API issues: Check external classification API availability
+- Vector DB: Verify Pinecone connection status
 
 ---
 

@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Main application
+  chatbot:
+    build: .
+    container_name: embroker-chatbot
+    ports:
+      - "5000:5000"
+    environment:
+      # Flask configuration
+      - FLASK_ENV=development
+      - SESSION_SECRET=${SESSION_SECRET:-dev-secret-key-change-in-production}
+      
+      # OpenAI configuration
+      - POC_OPENAI_API=${POC_OPENAI_API}
+      - OPENAI_MONITORING_KEY=${OPENAI_MONITORING_KEY:-${POC_OPENAI_API}}
+      
+      # Pinecone configuration
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      
+      # Database configuration (using PostgreSQL)
+      - DATABASE_URL=postgresql://embroker:embroker123@postgres:5432/embroker_insurance
+      
+      # Slack configuration (optional)
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN:-}
+      - SLACK_ESCALATION_CHANNEL=${SLACK_ESCALATION_CHANNEL:-}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET:-}
+      
+    volumes:
+      # Mount logs directory
+      - ./logs:/app/logs
+      # Mount session data
+      - chatbot-sessions:/app/sessions
+      # Mount for hot reload in development
+      - ./src:/app/src:ro
+      - ./agents:/app/agents:ro
+      - ./integrations:/app/integrations:ro
+      - ./templates:/app/templates:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - embroker-network
+    restart: unless-stopped
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: embroker-postgres
+    environment:
+      - POSTGRES_DB=embroker_insurance
+      - POSTGRES_USER=embroker
+      - POSTGRES_PASSWORD=embroker123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U embroker -d embroker_insurance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - embroker-network
+    restart: unless-stopped
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: embroker-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - embroker-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Nginx reverse proxy (optional, for production-like setup)
+  nginx:
+    image: nginx:alpine
+    container_name: embroker-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - chatbot
+    networks:
+      - embroker-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres-data:
+  redis-data:
+  chatbot-sessions:
+
+networks:
+  embroker-network:
+    driver: bridge

@@ -11,7 +11,15 @@ class OpenAIVectorStore:
         Args:
             vector_store_id: OpenAI vector store ID containing insurance documents
         """
-        self.client = OpenAI(api_key=os.getenv("POC_OPENAI_API"))
+        # Work around httpx proxy issue
+        import httpx
+        api_key = os.getenv("POC_OPENAI_API")
+        if not api_key:
+            raise ValueError("POC_OPENAI_API environment variable not set")
+        
+        # Create client without proxy settings
+        http_client = httpx.Client()
+        self.client = OpenAI(api_key=api_key, http_client=http_client)
         self.vector_store_id = vector_store_id
         self.model = "gpt-4.1-2025-04-14"
         self.assistant_id = None
