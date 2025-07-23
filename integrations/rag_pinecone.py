@@ -4,12 +4,12 @@ from pinecone import Pinecone, ServerlessSpec
 from openai import OpenAI
 
 class PineconeRAG:
-    def __init__(self, index_name="insurance-docs-index"):
+    def __init__(self, index_name="embroker-insurance-chatbot"):
         """
         Initialize Pinecone RAG system for knowledge retrieval.
         
         Args:
-            index_name: Name of the Pinecone index to use (default: insurance-docs-index)
+            index_name: Name of the Pinecone index to use (default: embroker-insurance-chatbot)
         """
         self.index_name = index_name
         self.embedding_model = "text-embedding-ada-002"

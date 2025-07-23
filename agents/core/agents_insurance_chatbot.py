@@ -42,7 +42,7 @@ class InsuranceKnowledgeAgent:
             api_key = os.getenv("PINECONE_API_KEY")
             if api_key:
                 self.pc = Pinecone(api_key=api_key)
-                self.pinecone_index = self.pc.Index("insurance-docs-index")
+                self.pinecone_index = self.pc.Index("embroker-insurance-chatbot")
                 self.pinecone_available = True
                 # Pinecone connected successfully
                 pass
@@ -217,7 +217,7 @@ class InsuranceKnowledgeAgent:
             "search_embroker_knowledge": self._search_embroker_knowledge_wrapper
         }
     
-    def _search_knowledge_wrapper(self, query: str, use_vector_store: bool = True) -> str:
+    def _search_knowledge_wrapper(self, query: str, use_vector_store: bool = False) -> str:
         """Enhanced wrapper for knowledge search using new Embroker knowledge base"""
         print(f"DEBUG: Knowledge search query: {query}")
         
@@ -270,18 +270,18 @@ class InsuranceKnowledgeAgent:
         
         if is_application_query:
             if is_embroker_specific:
-                # For Embroker-specific application questions, only use vector store
-                return self._search_vector_store(query)
-            else:
-                # For general application questions, use vector store first for guidance
-                vector_result = self._search_vector_store(query)
-                if vector_result and "no relevant information" not in vector_result.lower():
-                    return vector_result
-                # Fallback to Pinecone if vector store doesn't have relevant info
+                # For Embroker-specific application questions, prioritize Pinecone
                 return self._search_pinecone(query)
+            else:
+                # For general application questions, use Pinecone first for guidance
+                pinecone_result = self._search_pinecone(query)
+                if pinecone_result and "no relevant information" not in pinecone_result.lower():
+                    return pinecone_result
+                # Fallback to OpenAI vector store if Pinecone doesn't have relevant info
+                return self._search_vector_store(query)
         
-        # For non-application queries, use the specified method
-        return self._search_vector_store(query) if use_vector_store else self._search_pinecone(query)
+        # For non-application queries, use Pinecone by default (use_vector_store=False)
+        return self._search_pinecone(query) if not use_vector_store else self._search_vector_store(query)
     
     def _search_embroker_knowledge_wrapper(self, query: str) -> str:
         """Wrapper for enhanced Embroker knowledge base search"""
@@ -297,7 +297,7 @@ class InsuranceKnowledgeAgent:
             print(f"Error in Embroker knowledge search: {e}")
             return "I'm having trouble accessing our enhanced knowledge base. Please contact our sales team at sales@embroker.com for assistance."
     
-    def _mandatory_vector_search_wrapper(self, query: str, use_vector_store: bool = True) -> str:
+    def _mandatory_vector_search_wrapper(self, query: str, use_vector_store: bool = False) -> str:
         """MANDATORY vector search - ALWAYS uses vector database before any response"""
         print(f"🔍 MANDATORY VECTOR SEARCH: {query}")
         
@@ -330,7 +330,7 @@ class InsuranceKnowledgeAgent:
             print(f"❌ MANDATORY VECTOR SEARCH FAILED: {e}")
             return self._search_knowledge_wrapper_force_enhanced(query, use_vector_store)
 
-    def _search_knowledge_wrapper_force_enhanced(self, query: str, use_vector_store: bool = True) -> str:
+    def _search_knowledge_wrapper_force_enhanced(self, query: str, use_vector_store: bool = False) -> str:
         """Force enhanced knowledge search with detailed debugging"""
         print(f"🔍 FORCE ENHANCED SEARCH: {query}")
         
