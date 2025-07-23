@@ -1,0 +1,62 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         EMB CLASSIFICATION API FLOW                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│   USER ENTERS   │         │  BACKGROUND     │         │ EMB_CLASS API   │
+│                 │         │    AGENT        │         │                 │
+│ Company: ACME   │────────▶│ Extracts:       │────────▶│ POST Request:   │
+│ Email:          │         │ - Company Name  │         │                 │
+│ john@acme.com   │         │ - Website URL   │         │ {               │
+└─────────────────┘         │   from email    │         │  "companyName": │
+                           └─────────────────┘         │     "ACME",     │
+                                    │                   │  "websiteUrl":  │
+                                    │                   │  "https://acme. │
+                                    ▼                   │     com"        │
+                           ┌─────────────────┐         │ }               │
+                           │ ANALYSIS CACHE  │         └─────────────────┘
+                           │                 │◀──────────────────┘
+                           │ Stores complete │         API Response:
+                           │ JSON response:  │         {
+                           │ - NAICS code    │          "naicsCode": "541511",
+                           │ - Class code    │          "embrokerClassCode": "91362",
+                           │ - Summary       │          "companySummary": "...",
+                           │ - Confidence    │          "confidence": 83.8
+                           └─────────────────┘         }
+                                    │
+                                    │
+                                    ▼
+                           ┌─────────────────┐
+                           │ RISK ASSESSMENT │
+                           │     AGENT       │
+                           │                 │
+                           │ Uses API data:  │
+                           │ - NAICS for     │
+                           │   industry      │
+                           │ - Class code    │
+                           │   for products  │
+                           │ - Summary for   │
+                           │   context       │
+                           └─────────────────┘
+                                    │
+                                    ▼
+                           ┌─────────────────┐
+                           │  RISK REPORT    │
+                           │                 │
+                           │ Company: ACME   │
+                           │ NAICS: 541511   │
+                           │ Class: 91362    │
+                           │                 │
+                           │ RECOMMENDATIONS:│
+                           │ • Tech E&O: $3M │
+                           │ • Cyber: $2M    │
+                           │ • D&O: $1M      │
+                           └─────────────────┘
+
+KEY FILES & LOCATIONS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. API Call:      background_agent.py lines 119-130 (_analyze_via_website)
+2. Cache Storage: background_agent.py line 92 (stores full response)  
+3. Data Retrieval: app.py lines 984-992 (gets cached data)
+4. Report Generation: risk_assessment_agent.py line 156 (uses API data)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

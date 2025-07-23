@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Logs & Analytics Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e3e8ee;
+            transition: transform 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f8f9fa;
+        }
+        
+        .card-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            margin-right: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .error-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .error-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #fff5f5;
+            border-left: 4px solid #e53e3e;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .error-severity {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 1rem;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        .severity-high { background: #fed7d7; color: #c53030; }
+        .severity-medium { background: #feebc8; color: #dd6b20; }
+        .severity-low { background: #c6f6d5; color: #2f855a; }
+        .severity-critical { background: #e53e3e; color: white; }
+        
+        .error-content {
+            flex: 1;
+        }
+        
+        .error-type {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+        
+        .error-message {
+            color: #4a5568;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .error-time {
+            font-size: 0.8rem;
+            color: #a0aec0;
+            margin-top: 0.5rem;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        .time-filter {
+            padding: 0.5rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #a0aec0;
+            font-style: italic;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-top: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Chat Logs & Analytics Dashboard</h1>
+        <p>Monitor conversations, track errors, and analyze system performance</p>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <select class="time-filter" id="timeFilter">
+                <option value="1">Last 24 Hours</option>
+                <option value="7" selected>Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+            </select>
+            <a href="/logs/errors" class="btn btn-secondary" target="_blank">View All Errors</a>
+            <a href="/logs/analytics/chat" class="btn btn-secondary" target="_blank">Chat Analytics API</a>
+            <button class="btn btn-primary" onclick="refreshData()">Refresh Data</button>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Chat Statistics Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">💬</div>
+                    <div class="card-title">Chat Statistics</div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ chat_stats.get('total_messages', 0) }}</div>
+                        <div class="stat-label">Total Messages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ chat_stats.get('unique_conversations', 0) }}</div>
+                        <div class="stat-label">Conversations</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ "%.0f"|format(chat_stats.get('avg_response_time', 0) or 0) }}ms</div>
+                        <div class="stat-label">Avg Response</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ chat_stats.get('escalated_conversations', 0) }}</div>
+                        <div class="stat-label">Escalations</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Statistics Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🚨</div>
+                    <div class="card-title">Error Statistics</div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ error_stats.get('total_errors', 0) }}</div>
+                        <div class="stat-label">Total Errors</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ error_stats.get('affected_conversations', 0) }}</div>
+                        <div class="stat-label">Affected Chats</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ error_stats.get('errors_by_severity', {}).get('critical', 0) }}</div>
+                        <div class="stat-label">Critical</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ error_stats.get('errors_by_severity', {}).get('high', 0) }}</div>
+                        <div class="stat-label">High Priority</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message Types Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">📈</div>
+                    <div class="card-title">Message Breakdown</div>
+                </div>
+                {% set message_types = chat_stats.get('messages_by_type', {}) %}
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ message_types.get('user', 0) }}</div>
+                        <div class="stat-label">User Messages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ message_types.get('assistant', 0) }}</div>
+                        <div class="stat-label">AI Responses</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ message_types.get('system', 0) }}</div>
+                        <div class="stat-label">System Messages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ message_types.get('error', 0) }}</div>
+                        <div class="stat-label">Error Messages</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Performance Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">⚡</div>
+                    <div class="card-title">Performance Metrics</div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ "%.0f"|format((chat_stats.get('total_tokens', 0) or 0) / 1000) }}K</div>
+                        <div class="stat-label">Tokens Used</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ error_stats.get('errors_by_severity', {}).get('medium', 0) }}</div>
+                        <div class="stat-label">Medium Errors</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ error_stats.get('errors_by_severity', {}).get('low', 0) }}</div>
+                        <div class="stat-label">Low Errors</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ "%.1f"|format((chat_stats.get('escalated_conversations', 0) / (chat_stats.get('unique_conversations', 1) or 1)) * 100) }}%</div>
+                        <div class="stat-label">Escalation Rate</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Errors Section -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">🔍</div>
+                <div class="card-title">Recent Unresolved Errors</div>
+            </div>
+            
+            {% if recent_errors %}
+                <div class="error-list">
+                    {% for error in recent_errors %}
+                    <div class="error-item">
+                        <div class="error-severity severity-{{ error.severity }}">{{ error.severity }}</div>
+                        <div class="error-content">
+                            <div class="error-type">{{ error.error_type }}</div>
+                            <div class="error-message">{{ error.error_message }}</div>
+                            <div class="error-time">
+                                Conversation: {{ error.conversation_id[:8] }}... 
+                                | {{ error.timestamp }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="no-data">
+                    🎉 No unresolved errors found!
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Top Error Types -->
+        {% if error_stats.get('top_error_types') %}
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">📋</div>
+                <div class="card-title">Most Common Error Types</div>
+            </div>
+            
+            <div class="error-list">
+                {% for error_type in error_stats.get('top_error_types', []) %}
+                <div class="error-item">
+                    <div class="error-severity severity-medium">{{ error_type.count }}</div>
+                    <div class="error-content">
+                        <div class="error-type">{{ error_type.error_type }}</div>
+                        <div class="error-message">Occurred {{ error_type.count }} times in the last 7 days</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function refreshData() {
+            location.reload();
+        }
+
+        document.getElementById('timeFilter').addEventListener('change', function() {
+            const days = this.value;
+            const url = new URL(window.location);
+            url.searchParams.set('days', days);
+            window.location = url;
+        });
+
+        // Auto-refresh every 30 seconds
+        setInterval(refreshData, 30000);
+    </script>
+</body>
+</html>
