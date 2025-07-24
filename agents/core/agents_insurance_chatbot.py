@@ -22,7 +22,6 @@ class InsuranceKnowledgeAgent:
         """Initialize the insurance agent with tools and knowledge base"""
         self.openai_client = OpenAI(api_key=os.getenv("POC_OPENAI_API"))
         self.setup_pinecone()
-        self.setup_vector_store()
         
         # Initialize enhanced knowledge base
         self.embroker_kb = get_embroker_knowledge_base()
@@ -42,7 +41,7 @@ class InsuranceKnowledgeAgent:
             api_key = os.getenv("PINECONE_API_KEY")
             if api_key:
                 self.pc = Pinecone(api_key=api_key)
-                self.pinecone_index = self.pc.Index("embroker-insurance-chatbot")
+                self.pinecone_index = self.pc.Index("insurance-docs-index")
                 self.pinecone_available = True
                 # Pinecone connected successfully
                 pass
@@ -53,16 +52,7 @@ class InsuranceKnowledgeAgent:
             self.pinecone_available = False
             # Pinecone connection failed - using fallback
             
-    def setup_vector_store(self):
-        """Initialize OpenAI vector store"""
-        try:
-            self.vector_store_id = "vs_6843730d282481918003cdb215f5e0b1"
-            self.vector_store_available = True
-            # OpenAI Vector Store configured
-            pass
-        except Exception as e:
-            self.vector_store_available = False
-            # Vector store setup failed - using fallback
+
     
     def _create_function_tools(self):
         """Create function tools for Chat Completions API"""
@@ -78,10 +68,6 @@ class InsuranceKnowledgeAgent:
                             "query": {
                                 "type": "string",
                                 "description": "The search query for insurance knowledge"
-                            },
-                            "use_vector_store": {
-                                "type": "boolean",
-                                "description": "Whether to use vector store (default true)"
                             }
                         },
                         "required": ["query"]
@@ -92,7 +78,7 @@ class InsuranceKnowledgeAgent:
                 "type": "function",
                 "function": {
                     "name": "search_web_information",
-                    "description": "Search the web for real-time information including latest news, market trends, and regulatory updates",
+                    "description": "REQUIRED for current events, news, market trends, 2024/2025 information, or anything happening 'now', 'today', or 'recently'. Use this for any time-sensitive questions about companies, regulations, or industry updates.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -177,18 +163,6 @@ class InsuranceKnowledgeAgent:
             {
                 "type": "function",
                 "function": {
-                    "name": "generate_risk_assessment_report",
-                    "description": "Generate detailed risk assessment report using stored NAIC data with Embroker product recommendations. Use this when user requests risk assessment or risk report.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {},
-                        "required": []
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
                     "name": "search_embroker_knowledge",
                     "description": "Search enhanced Embroker knowledge base for specific product information, policies, and detailed coverage questions",
                     "parameters": {
@@ -213,11 +187,10 @@ class InsuranceKnowledgeAgent:
             "analyze_underwriting_criteria": self._analyze_underwriting_wrapper,
             "get_company_analysis": self._get_company_analysis,
             "escalate_to_underwriter": self._escalate_conversation,
-            "generate_risk_assessment_report": lambda: self._generate_risk_report_wrapper(),
             "search_embroker_knowledge": self._search_embroker_knowledge_wrapper
         }
     
-    def _search_knowledge_wrapper(self, query: str, use_vector_store: bool = False) -> str:
+    def _search_knowledge_wrapper(self, query: str) -> str:
         """Enhanced wrapper for knowledge search using new Embroker knowledge base"""
         print(f"DEBUG: Knowledge search query: {query}")
         
@@ -242,46 +215,26 @@ class InsuranceKnowledgeAgent:
             
             print("DEBUG: All enhanced methods failed, falling back to original search methods")
             # Final fallback to original search methods
-            return self._search_original_knowledge(query, use_vector_store)
+            return self._search_original_knowledge(query)
             
         except Exception as e:
             print(f"Enhanced knowledge search failed: {e}")
             print("DEBUG: Exception occurred, falling back to original search")
-            return self._search_original_knowledge(query, use_vector_store)
+            return self._search_original_knowledge(query)
     
-    def _search_original_knowledge(self, query: str, use_vector_store: bool = True) -> str:
-        """Original knowledge search with application question handling"""
-        # Check if this is an application-related query
-        application_keywords = [
-            'application', 'apply', 'form', 'questionnaire', 'questions',
-            'submit', 'filing', 'paperwork', 'documentation required',
-            'what information', 'what do I need', 'how to apply'
-        ]
+    def _search_original_knowledge(self, query: str) -> str:
+        """Original knowledge search using Pinecone and EmbrokerKB"""
+        # Try Embroker knowledge base first
+        if self.embroker_kb:
+            try:
+                result = self.embroker_kb.chat_with_knowledge(query, verbose=False)
+                if result and len(result.strip()) > 20:
+                    return result
+            except Exception as e:
+                print(f"EmbrokerKB search error: {e}")
         
-        embroker_specific_keywords = [
-            'embroker application', 'embroker form', 'your application',
-            'your form', 'embroker questions', 'embroker requirements',
-            'embroker paperwork', 'embroker process'
-        ]
-        
-        query_lower = query.lower()
-        is_application_query = any(keyword in query_lower for keyword in application_keywords)
-        is_embroker_specific = any(keyword in query_lower for keyword in embroker_specific_keywords)
-        
-        if is_application_query:
-            if is_embroker_specific:
-                # For Embroker-specific application questions, prioritize Pinecone
-                return self._search_pinecone(query)
-            else:
-                # For general application questions, use Pinecone first for guidance
-                pinecone_result = self._search_pinecone(query)
-                if pinecone_result and "no relevant information" not in pinecone_result.lower():
-                    return pinecone_result
-                # Fallback to OpenAI vector store if Pinecone doesn't have relevant info
-                return self._search_vector_store(query)
-        
-        # For non-application queries, use Pinecone by default (use_vector_store=False)
-        return self._search_pinecone(query) if not use_vector_store else self._search_vector_store(query)
+        # Fallback to Pinecone
+        return self._search_pinecone(query)
     
     def _search_embroker_knowledge_wrapper(self, query: str) -> str:
         """Wrapper for enhanced Embroker knowledge base search"""
@@ -297,7 +250,7 @@ class InsuranceKnowledgeAgent:
             print(f"Error in Embroker knowledge search: {e}")
             return "I'm having trouble accessing our enhanced knowledge base. Please contact our sales team at sales@embroker.com for assistance."
     
-    def _mandatory_vector_search_wrapper(self, query: str, use_vector_store: bool = False) -> str:
+    def _mandatory_vector_search_wrapper(self, query: str) -> str:
         """MANDATORY vector search - ALWAYS uses vector database before any response"""
         print(f"🔍 MANDATORY VECTOR SEARCH: {query}")
         
@@ -324,13 +277,13 @@ class InsuranceKnowledgeAgent:
             
             # Final fallback: Original enhanced search
             print("⚠️ MANDATORY: Falling back to enhanced search")
-            return self._search_knowledge_wrapper_force_enhanced(query, use_vector_store)
+            return self._search_knowledge_wrapper_force_enhanced(query)
             
         except Exception as e:
             print(f"❌ MANDATORY VECTOR SEARCH FAILED: {e}")
-            return self._search_knowledge_wrapper_force_enhanced(query, use_vector_store)
+            return self._search_knowledge_wrapper_force_enhanced(query)
 
-    def _search_knowledge_wrapper_force_enhanced(self, query: str, use_vector_store: bool = False) -> str:
+    def _search_knowledge_wrapper_force_enhanced(self, query: str) -> str:
         """Force enhanced knowledge search with detailed debugging"""
         print(f"🔍 FORCE ENHANCED SEARCH: {query}")
         
@@ -375,7 +328,7 @@ class InsuranceKnowledgeAgent:
             
             # Fallback to original with detailed logging
             print("🔄 Falling back to original search methods")
-            return self._search_original_knowledge(query, use_vector_store)
+            return self._search_original_knowledge(query)
             
         except Exception as e:
             print(f"❌ Enhanced search failed completely: {e}")
@@ -396,113 +349,52 @@ class InsuranceKnowledgeAgent:
     
     def _get_agent_instructions(self) -> str:
         """Get comprehensive agent instructions"""
-        return """You are Embroker AI, a professional insurance advisor helping businesses find the right coverage.
+        return """I'm Embroker AI, your professional insurance advisor. I help businesses find the right coverage through natural, conversational guidance.
 
-CONVERSATION STYLE:
-• Be friendly and approachable while maintaining professionalism
-• Respond naturally to greetings and general conversation
-• Only discuss insurance when the user asks about it or shows interest
-• Be knowledgeable and confident when insurance topics arise
+My approach:
 
-GREETING RESPONSES:
-• Respond to greetings naturally: "Hello! How can I help you today?"
-• Don't immediately launch into product information
-• Wait for the user to express their needs or ask questions
-• Keep initial responses brief and conversational
+I engage naturally with any topic you bring up. If you ask about music preferences or want to discuss Led Zeppelin versus Ozzy Osbourne, I'll participate genuinely in the conversation before smoothly transitioning back to how I can help with your insurance needs.
 
-PRODUCT QUESTIONS:
-• ONLY when specifically asked about offerings/products, list core Embroker products:
-  - Tech E&O / Professional Liability
-  - Cyber Liability
-  - Directors & Officers (D&O)
-  - Employment Practices Liability (EPLI)
-  - General Liability
-  - Workers Compensation
-• Use knowledge base to provide specific details about each product
-• Don't list products unless explicitly asked
+CRITICAL - Web Search for Current Information:
+- ALWAYS use search_web_information tool when users ask about:
+  • Current events, recent news, or anything happening "now" or "today"
+  • Market trends, regulatory updates, or industry developments
+  • Specific companies or recent announcements
+  • Any time-sensitive information (2024, 2025, "latest", "recent", "current")
+  • Real-time data or statistics
+- Don't guess or use outdated knowledge - use web search for anything current
 
-HANDLING CONVERSATIONS:
-• Let the conversation flow naturally
-• Only bring up insurance if the user shows interest
-• Be helpful without being pushy about products
+CRITICAL - Context retention across topic switches:
+- Always remember and maintain context about the user's company throughout the entire conversation
+- If they told me they're an AI company, I remember that even if they ask about music, sports, or anything else
+- When they switch topics, I connect it back to their business context (e.g., "Is your AI company working in the entertainment space?" not just "Are you in entertainment?")
+- Never forget key information they've shared just because the topic changes temporarily
 
-CONVERSATION CONTEXT AWARENESS:
-• ALWAYS read the ENTIRE conversation history to understand context
-• DETECT when the user switches topics and respond to the NEW topic
-• If the user asks about something different, focus on their CURRENT question
-• Don't get stuck on previous topics - be adaptive and responsive
-• Track the conversation flow but prioritize the most recent user intent
+I maintain a professional yet approachable tone. Think of our conversation as a business meeting with a trusted advisor who's easy to talk to. I keep responses concise and clear, using everyday language rather than insurance jargon.
 
-MANDATORY VECTOR DATABASE CONSULTATION:
-• ALWAYS use search_insurance_knowledge for EVERY customer question before responding
-• Vector database contains ALL Embroker product information and MUST be consulted first
-• Never provide general insurance advice without first searching our knowledge base
-• Use vector search results as the PRIMARY source for ALL responses
-• Only supplement with general knowledge if vector search confirms it
+CRITICAL - When using vector database knowledge:
+- NEVER present information as lists, bullet points, or data dumps
+- Weave information into conversational responses
+- EXCEPTION: When users ask "what do you offer?" be MORE CONVERSATIONAL, not less:
+  GOOD Example: "We help modern businesses stay protected, especially tech companies. Most folks come to us for cyber and E&O coverage - basically protection if your software has issues or there's a data breach. We've also got D&O to protect your leadership team, plus the usual stuff like general liability and workers' comp. What's your business about?"
+  BAD Example: Long paragraphs listing every product with detailed explanations
+- Keep responses SHORT and NATURAL - under 100 words for product overviews
+- Talk like you're having coffee with someone, not giving a presentation
+- Don't explain what each insurance does unless they ask
+- If you don't know their company yet, end with asking about their business
+- If you already know their company from conversation history, pivot back to insurance naturally without asking again
+- For other questions, mention only 2-3 most relevant products naturally
+- Always sound like a human advisor having a conversation, not reading from a catalog
 
-RESPONSE STYLE:
-• Keep responses concise and clear (50-100 words for general questions)
-• For claims examples, provide detailed information (200-400 words) including:
-  - Specific scenario description
-  - Coverage type involved
-  - Claim amount ranges
-  - Resolution details
-  - Key takeaways for the customer
-• Use clear, professional language that's easy to understand
-• Focus on being helpful and informative
-• Maintain a consultative approach
+For insurance queries, I draw from comprehensive knowledge about coverage options, limits, and pricing. I provide specific, accurate information tailored to your needs without overwhelming you with unnecessary details.
 
-EMBROKER POSITIONING:
-• Present Embroker as a leading insurance provider
-• Highlight our digital platform and technology expertise
-• Emphasize our specialization in tech companies and modern businesses
-• Focus on our streamlined, efficient process
+When you need detailed assistance with claims examples or coverage analysis, I provide thorough explanations while maintaining clarity and relevance to your specific situation.
 
-WORKFLOW FOR EVERY QUESTION:
-1. ANALYZE: Review full conversation history to understand context and topic changes
-2. DETECT: Identify if the user has switched topics or asked something new
-3. ACKNOWLEDGE: If off-topic, warmly acknowledge before redirecting
-4. SEARCH: Use search_insurance_knowledge to check our database for the CURRENT topic
-5. RESPOND: Base your response on vector results for the CURRENT question
-6. ADAPT: Stay flexible and responsive to topic changes
+My goal is to make insurance decisions straightforward and stress-free. Embroker offers sophisticated digital tools designed for modern businesses, particularly in the technology sector, and I'm here to help you navigate your options effectively.
 
-TOOLS AVAILABLE:
-• search_insurance_knowledge for policy details (MANDATORY FIRST STEP)
-• search_web_information for current trends
-• analyze_underwriting_criteria for risk assessment
-• generate_risk_assessment_report for comprehensive analysis
-• get_company_analysis for company background
-• escalate_to_underwriter for complex cases
-• search_embroker_knowledge for enhanced product info
+I focus on providing helpful, accurate information in a conversational manner, always keeping your business protection needs at the forefront of our discussion."""
 
-CRITICAL: The vector database contains specific coverage limits, costs, eligibility criteria, and product details that MUST be consulted before any response. Never rely on general AI knowledge when our proprietary knowledge base has the answer.
 
-Remember: Stay contextually aware, adapt to topic changes, and always search our knowledge base before responding."""
-
-    def _search_vector_store(self, query: str) -> str:
-        """Search OpenAI vector store for insurance knowledge - optimized for speed"""
-        try:
-            if not self.vector_store_available:
-                return "Vector store not available."
-            
-            # Direct vector store query with speed optimization
-            response = self.openai_client.chat.completions.create(
-                model=self.speed_model,
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant with access to Embroker insurance documents. Provide concise, accurate information."},
-                    {"role": "user", "content": query}
-                ],
-                tools=[{"type": "file_search", "file_search": {}}],
-                tool_choice="auto",
-                max_tokens=500,  # Limit response length for speed
-                temperature=0.1   # Lower temperature for faster processing
-            )
-            
-            return response.choices[0].message.content or "No information found."
-            
-        except Exception as e:
-            print(f"Vector store error: {e}")
-            return "Search unavailable."
 
     def _search_pinecone(self, query: str, top_k: int = 5) -> str:
         """Search Pinecone knowledge base"""
@@ -547,7 +439,7 @@ Remember: Stay contextually aware, adapt to topic changes, and always search our
         try:
             # Search for underwriting criteria first
             criteria_query = f"underwriting criteria {industry} eligibility requirements"
-            criteria_info = self._search_vector_store(criteria_query)
+            criteria_info = self._search_knowledge_wrapper(criteria_query)
             
             analysis_prompt = f"""
 Analyze this company for insurance eligibility:
@@ -697,6 +589,7 @@ Provide comprehensive underwriting analysis including:
             print(f"Escalation error: {e}")
             return f"Escalation request submitted. Case ID: ESC_{int(os.time())}"
 
+
     
     def _generate_risk_report_wrapper(self) -> str:
         """Generate comprehensive risk assessment report using stored NAIC data"""
@@ -743,13 +636,26 @@ Provide comprehensive underwriting analysis including:
             from agents.analysis.risk_assessment_agent import RiskAssessmentAgent
             
             risk_agent = RiskAssessmentAgent()
-            sample_data = {
-                'raw_naic_response': {
-                    'industry': 'Technology Services',
-                    'business_description': 'Technology and software services company',
-                    'company_name': stored_company_name or 'Technology Company'
+            
+            # Create proper fallback data when external API is unavailable
+            if not naic_data or len(str(naic_data)) < 50:
+                # Generate risk assessment with reasonable defaults for tech companies
+                sample_data = {
+                    'companyName': stored_company_name or 'Technology Company',
+                    'websiteUrl': f"https://{(stored_company_name or 'company').lower().replace(' ', '')}.com",
+                    'naicsCode': '541511',  # Custom Computer Programming Services
+                    'naicsDescription': 'Custom Computer Programming Services',
+                    'industryClassification': 'Technology Services',
+                    'confidence': 0.85,
+                    'embrokerCategory': 'Technology',
+                    'companySummary': f"{stored_company_name or 'The company'} operates in the technology sector, providing software development and technology services. As a modern tech company, they face typical industry risks including cyber threats, professional liability, and intellectual property concerns.",
+                    'riskProfile': {
+                        'primaryRisks': ['Cyber Security', 'Professional Liability', 'Intellectual Property'],
+                        'recommendedProducts': ['Tech E&O', 'Cyber Liability', 'General Liability', 'D&O']
+                    }
                 }
-            }
+            else:
+                sample_data = naic_data
             
             detailed_report = risk_agent.generate_risk_assessment_report(sample_data, stored_company_name or 'Technology Company')
             
@@ -761,211 +667,17 @@ Provide comprehensive underwriting analysis including:
             print(f"DEBUG: Generated detailed report: {len(detailed_report)} chars")
             return detailed_report
             
-            # If we have NAIC data, use it
-            if naic_data and len(str(naic_data)) > 50:
-                # Parse NAIC data if it's a string
-                if isinstance(naic_data, str):
-                    try:
-                        import json
-                        naic_data = json.loads(naic_data)
-                    except:
-                        # If it's not JSON, create a basic structure
-                        naic_data = {"raw_naic_response": {"analysis": naic_data}}
-                
-                # Generate the comprehensive report
-                final_company_name = stored_company_name or "your company"
-                risk_report = generate_risk_report(naic_data, final_company_name)
-                
-                return f"Here's your comprehensive risk assessment report:\n\n{risk_report}"
-            else:
-                print(f"DEBUG: No NAIC data found, generating comprehensive fallback report")
-                return self._generate_comprehensive_fallback_report()
-            
         except Exception as e:
             print(f"DEBUG: Risk report generation error: {e}")
             return self._return_comprehensive_risk_report()
     
     def _return_comprehensive_risk_report(self) -> str:
-        """Return comprehensive risk assessment report directly"""
-        return """# COMPREHENSIVE RISK ASSESSMENT REPORT
-
-## EXECUTIVE SUMMARY
-
-This comprehensive risk assessment provides detailed analysis of potential exposures and strategic insurance coverage recommendations for technology companies operating in today's dynamic business environment. Based on extensive industry analysis and risk profiling methodologies, this report identifies critical areas of concern and provides actionable recommendations for optimal insurance protection.
-
-Technology companies face unique and evolving risk landscapes that require specialized insurance solutions. The analysis encompasses professional liability exposures, cyber security threats, employment practices risks, and directors & officers liability considerations. This assessment outlines critical coverage areas with specific recommendations tailored to modern technology operations.
-
-Our assessment indicates that technology companies require comprehensive insurance portfolios with aggregate limits ranging from $10M to $25M across multiple coverage lines. The rapidly evolving regulatory environment and increasing cyber threat landscape necessitate robust protection strategies that address both current exposures and emerging risks.
-
-## COMPANY RISK PROFILE ANALYSIS
-
-Technology companies operate within an increasingly complex risk environment characterized by rapid innovation cycles, digital transformation requirements, and evolving regulatory frameworks. The sector presents distinct risk profiles that differ significantly from traditional industries, requiring specialized insurance approaches addressing both operational exposures and emerging threats.
-
-Key risk factors include professional service delivery risks, intellectual property exposures, cyber security vulnerabilities, employment practices liabilities, and fiduciary responsibilities. These exposures can result in substantial financial losses ranging from hundreds of thousands to millions of dollars depending on incident scope and impact.
-
-The competitive technology landscape amplifies certain risks through talent acquisition challenges, client expectation pressures, regulatory compliance requirements, and the high-stakes nature of technology business decisions. Companies must navigate complex environments while maintaining operational continuity and stakeholder confidence.
-
-## DETAILED RISK EXPOSURE ANALYSIS
-
-**Professional Liability and Technology Errors & Omissions:**
-Technology companies face significant professional liability risks stemming from service delivery failures, software defects, system integration errors, and failure to meet performance specifications. These exposures can result in substantial claims ranging from $100,000 to $5M+ depending on client impact and consequential damages.
-
-Common scenarios include coding errors causing client system failures, software bugs resulting in data loss, missed project deadlines causing business interruption, and intellectual property disputes arising from development activities. Professional liability claims often include both direct damages and consequential losses, creating substantial exposure potential.
-
-**Cyber Security and Data Protection Risks:**
-The digital nature of technology operations creates comprehensive cyber liability exposures including data breaches, network security failures, privacy violations, business interruption from cyber events, and regulatory compliance failures. Industry studies indicate average breach costs exceeding $4.45M with technology companies experiencing higher-than-average incident costs.
-
-Threat vectors include ransomware attacks, social engineering schemes, insider threats, third-party vendor vulnerabilities, and sophisticated persistent threat actors. Technology companies must address both first-party costs (incident response, forensics, business interruption) and third-party liabilities (customer notification, credit monitoring, regulatory fines, litigation).
-
-**Employment Practices and Human Resources Exposures:**
-Technology companies maintain diverse, rapidly growing workforces creating employment practices liability exposures including wrongful termination claims, discrimination allegations, harassment incidents, wage and hour disputes, and failure to promote lawsuits. The competitive talent market amplifies these risks through aggressive recruitment practices and high-pressure work environments.
-
-Remote work arrangements, flexible scheduling, and performance-based compensation structures create additional complexity in employment practices management. Claims typically range from $50,000 to $500,000 with class action potential significantly increasing exposure magnitude.
-
-**Directors & Officers and Management Liability:**
-Technology company executives face heightened D&O exposures due to regulatory scrutiny, investor expectations, fiduciary responsibilities, and high-stakes business decisions. Securities litigation, regulatory investigations, and stakeholder disputes represent significant potential liabilities often exceeding $1M in defense costs alone.
-
-Private company exposures include employment practices claims against directors, fiduciary breach allegations, regulatory investigations, and third-party litigation naming company officers. Public company exposures expand to include securities claims, shareholder derivative suits, and SEC enforcement actions.
-
-## COMPREHENSIVE COVERAGE RECOMMENDATIONS
-
-**Technology Errors & Omissions Insurance - Primary Recommendation:**
-- Recommended Limits: $5,000,000 to $10,000,000 per claim and aggregate
-- Recommended Deductible: $25,000 to $50,000
-- Essential Coverage Elements: Professional negligence, intellectual property protection, regulatory defense costs, media liability coverage, network security liability
-
-Coverage should include broad professional services definitions, contractual liability protection, regulatory investigation coverage, and intellectual property infringement defense. Policy language must address technology-specific exposures including software development, system integration, and digital service delivery.
-
-**Cyber Liability Insurance - Critical Protection:**
-- Recommended Limits: $5,000,000 to $10,000,000 per incident
-- Recommended Deductible: $25,000 (waiting period for business interruption)
-- Comprehensive Coverage: First-party response costs, third-party liability, business interruption, cyber extortion, regulatory fines and penalties
-
-Coverage must include incident response team activation, forensic investigation costs, legal counsel expenses, customer notification requirements, credit monitoring services, business interruption losses, and regulatory compliance costs. Policy should address both network security failures and privacy violations.
-
-**Directors & Officers Insurance - Executive Protection:**
-- Recommended Limits: $5,000,000 to $10,000,000 per claim
-- Recommended Deductible: $25,000 to $50,000
-- Comprehensive Protection: Side A (individual coverage), Side B (corporate reimbursement), Side C (entity coverage), employment practices liability
-
-Coverage should include broad management acts definitions, regulatory investigation coverage, crisis management expenses, and worldwide territorial scope. Employment practices liability coverage must address discrimination, harassment, wrongful termination, and wage and hour claims.
-
-**Employment Practices Liability Insurance:**
-- Recommended Limits: $2,000,000 to $5,000,000 per claim and aggregate
-- Recommended Deductible: $25,000
-- Essential Coverage: Third-party harassment, wage and hour liability, workplace discrimination, wrongful termination, failure to promote
-
-Policy should include defense cost coverage, settlement authority provisions, and coverage for both employees and non-employees including contractors, vendors, and customers.
-
-## RELEVANT CLAIMS SCENARIOS AND CASE STUDIES
-
-**Technology E&O Claim - Software Integration Failure:**
-A software development company faced a $2.8M claim when their API integration error caused a client's e-commerce platform to display incorrect pricing during a major sales event. The incident resulted in significant revenue loss, customer confusion, and reputational damage. Total costs included direct damages ($1.8M), emergency remediation expenses ($350K), business interruption losses ($450K), and defense costs ($200K).
-
-**Cyber Liability Claim - Ransomware Attack:**
-A SaaS provider experienced a sophisticated ransomware attack encrypting customer databases and demanding $750,000 ransom payment. Total incident costs exceeded $3.4M including forensic investigation ($85,000), legal counsel ($120,000), customer notification ($145,000), credit monitoring services ($280,000), business interruption losses ($1.2M), regulatory compliance ($95,000), and reputation management ($85,000).
-
-**Directors & Officers Claim - Securities Litigation:**
-Technology company executives faced a securities class action lawsuit alleging misleading statements regarding product capabilities and market penetration. Defense costs exceeded $1.8M over 24 months with ultimate settlement reaching $4.5M. Additional regulatory investigation by state securities commission resulted in $350,000 in additional defense costs and administrative penalties.
-
-**Employment Practices Claim - Class Action Wage and Hour:**
-A technology startup faced a class action lawsuit from software engineers claiming misclassification as exempt employees and unpaid overtime compensation. The claim involved 45 employees over a three-year period with total settlement costs reaching $890,000 including back wages ($520K), penalties ($185K), attorney fees ($115K), and defense costs ($70K).
-
-## STRATEGIC RISK MITIGATION RECOMMENDATIONS
-
-**Cybersecurity Framework Implementation:**
-Deploy comprehensive cybersecurity frameworks including multi-factor authentication, endpoint detection and response systems, regular penetration testing, employee security awareness training, and incident response procedures. Implement data encryption, access controls, and vendor risk management programs.
-
-**Professional Services Risk Management:**
-Establish clear professional services agreements with detailed scope of work definitions, deliverable specifications, limitation of liability provisions, and intellectual property protection clauses. Implement project management protocols, quality assurance procedures, and client communication standards.
-
-**Employment Practices Best Practices:**
-Develop comprehensive employment practices including regular HR policy updates, management training programs, complaint investigation procedures, and documentation protocols. Conduct regular legal compliance reviews and maintain current employee handbooks.
-
-**Corporate Governance Enhancement:**
-Maintain strong corporate governance practices with regular board oversight, fiduciary training programs, conflict of interest policies, and regulatory compliance monitoring. Implement document retention policies and crisis management procedures.
-
-## IMPLEMENTATION TIMELINE AND NEXT STEPS
-
-**Immediate Actions (30 days):**
-- Review current insurance coverage limits, terms, and conditions
-- Identify coverage gaps and enhancement opportunities
-- Obtain competitive insurance market quotations
-- Assess current risk management practices and procedures
-
-**Short-term Objectives (60 days):**
-- Implement recommended coverage enhancements and limit increases
-- Execute improved policy terms and coverage extensions
-- Deploy enhanced cybersecurity measures and protocols
-- Initiate employment practices training programs
-
-**Medium-term Goals (90 days):**
-- Conduct comprehensive enterprise risk management assessment
-- Implement advanced risk mitigation strategies and procedures
-- Establish vendor risk management and compliance programs
-- Deploy enhanced corporate governance and oversight mechanisms
-
-**Ongoing Requirements:**
-- Quarterly insurance coverage reviews and market assessments
-- Annual risk management evaluations and strategy updates
-- Continuous cybersecurity monitoring and threat assessment
-- Regular employment practices and corporate governance audits
-
-This comprehensive risk assessment demonstrates the complex insurance needs facing modern technology companies. Embroker's specialized expertise in technology sector risks, combined with our digital platform efficiency, provides optimal solutions for comprehensive protection while maintaining competitive market positioning.
-
-**Recommended next step: Schedule a detailed consultation with Embroker's underwriting specialists to customize these recommendations based on your specific operational profile, growth plans, and risk tolerance parameters.**"""
+        """Return brief conversational risk assessment message"""
+        return "I can help analyze your business risks and recommend the right coverage. To get started, could you tell me about your company and what you do? Once I understand your business, I'll provide personalized insurance recommendations tailored to your specific needs."
     
     def _generate_embroker_fallback_report(self) -> str:
-        """Generate Embroker-specific risk assessment as fallback"""
-        return """**COMPREHENSIVE RISK ASSESSMENT REPORT: EMBROKER**
-
-**Executive Summary:**
-Based on our analysis, Embroker operates as a leading insurance technology platform, providing comprehensive commercial insurance solutions through digital channels. As an InsurTech company, Embroker faces unique technology and professional liability exposures requiring specialized coverage.
-
-**Risk Profile Analysis:**
-- **Industry Classification**: Insurance Technology/FinTech
-- **Primary Risk Exposures**: Technology E&O, Cyber Liability, Directors & Officers
-- **Risk Level**: Moderate to High (Technology-focused business model)
-- **Annual Revenue**: Mid-market insurance technology platform
-
-**Recommended Coverage Portfolio:**
-
-**1. Technology Errors & Omissions Insurance**
-- **Recommended Limit**: $5M per claim / $5M aggregate
-- **Deductible**: $25,000
-- **Key Coverage**: Professional negligence, system failures, data processing errors, software malfunctions
-
-**2. Cyber Liability Insurance**
-- **Recommended Limit**: $10M per incident
-- **Deductible**: $50,000
-- **Coverage**: Data breach response, business interruption, cyber extortion, regulatory fines
-
-**3. Directors & Officers Liability**
-- **Recommended Limit**: $10M per claim
-- **Deductible**: $25,000
-- **Coverage**: Management liability, employment practices, fiduciary liability
-
-**4. General Liability**
-- **Recommended Limit**: $2M per occurrence / $4M aggregate
-- **Coverage**: Bodily injury, property damage, personal injury claims
-
-**Real-World Claims Examples:**
-- **Tech E&O**: Software malfunction causes client $500K loss in missed coverage
-- **Cyber**: Data breach affecting 50,000 customer records - $2.3M total remediation cost
-- **D&O**: Shareholder lawsuit alleging mismanagement - $1.8M in defense costs
-- **General**: Client injury during office visit - $85K medical and legal costs
-
-**Risk Mitigation Recommendations:**
-1. Implement robust cybersecurity protocols and regular penetration testing
-2. Conduct quarterly third-party security assessments
-3. Comprehensive employee training on data handling and security
-4. Incident response plan testing and tabletop exercises
-5. Regular software updates and vulnerability management
-
-**Next Steps:**
-Contact our underwriting team for detailed quotes and policy customization based on your specific business operations and growth projections.
-
-**Report Generated**: Using o3-mini enhanced reasoning model with Embroker-specific risk analysis"""
+        """Generate brief conversational risk assessment"""
+        return "Looks like you're interested in Embroker's own coverage! As an insurance tech company, we know the unique risks in our space. Tech E&O and cyber coverage are essential, plus D&O to protect leadership. Want to discuss what coverage makes sense for your specific business?"
 
     async def process_message(self, message: str, conversation_history: List[Dict] = None, conversation_id: str = None, company_name: str = None) -> str:
         """Process user message through the agent with enhanced knowledge integration"""
@@ -1015,28 +727,29 @@ Contact our underwriting team for detailed quotes and policy customization based
                     print("💾 MANDATORY: Using direct chat_with_knowledge interface")
                     vector_result = self.embroker_kb.chat_with_knowledge(search_query, verbose=True)
                     
-                    if vector_result and len(vector_result.strip()) > 20 and "I don't have specific information" not in vector_result:
-                        enhanced_context = f"\n\n=== MANDATORY VECTOR DATABASE RESPONSE ===\n{vector_result}\n\n⚠️ CRITICAL: You MUST base your response primarily on the above vector database content. This is authoritative Embroker knowledge that takes precedence over general AI knowledge.\n"
-                        print(f"✅ MANDATORY VECTOR SUCCESS: {len(enhanced_context)} chars from chat_with_knowledge")
+                    if vector_result and len(vector_result.strip()) > 20:
+                        # For off-topic questions, vector_result will be empty, so AI can respond naturally
+                        enhanced_context = f"\n\n=== VECTOR DATABASE CONSULTED ===\n{vector_result}\n\nIf the above contains insurance information, incorporate it into your response. Otherwise, respond naturally to the user's question.\n"
+                        print(f"✅ VECTOR CONSULTED: {len(enhanced_context)} chars from chat_with_knowledge")
                     else:
                         print("⚠️ Primary vector method insufficient, trying comprehensive search")
                         
                         # SECONDARY: Use comprehensive search as backup
                         enhanced_result = self.embroker_kb.search_comprehensive(search_query, top_k_per_source=5)
                         if enhanced_result and len(enhanced_result.strip()) > 5:
-                            enhanced_context = f"\n\n=== MANDATORY EMBROKER VECTOR DATABASE KNOWLEDGE ===\n{enhanced_result}\n\n⚠️ CRITICAL: You MUST use this vector content as your primary source. This contains specific coverage limits, policy details, and tech/cyber information.\n"
-                            print(f"✅ MANDATORY COMPREHENSIVE SUCCESS: {len(enhanced_context)} chars")
+                            enhanced_context = f"\n\n=== VECTOR DATABASE KNOWLEDGE ===\n{enhanced_result}\n\nIf the above contains relevant insurance information, incorporate it into your response.\n"
+                            print(f"✅ COMPREHENSIVE SUCCESS: {len(enhanced_context)} chars")
                         else:
-                            # FORCE CONTEXT EVEN IF NO RESULTS
-                            enhanced_context = f"\n\n=== EMBROKER VECTOR DATABASE ACCESSED ===\nQuery: {message}\n⚠️ CRITICAL: You have access to Embroker's proprietary insurance knowledge base. Search it using your tools before responding with general information.\n"
-                            print("⚠️ FORCING vector context instruction even with minimal results")
+                            # For off-topic questions, don't force vector context
+                            enhanced_context = "\n\n=== VECTOR DATABASE CONSULTED ===\nNo relevant insurance information found. Feel free to respond naturally to the user's question.\n"
+                            print("⚠️ No relevant vector results, allowing natural response")
                 else:
-                    print("❌ CRITICAL: Embroker knowledge base not available")
-                    enhanced_context = f"\n\n=== VECTOR DATABASE REQUIRED ===\nUser query: {message}\n⚠️ CRITICAL: You must search the insurance knowledge base before responding to any question.\n"
+                    print("❌ Embroker knowledge base not available")
+                    enhanced_context = "\n\n=== KNOWLEDGE BASE UNAVAILABLE ===\nRespond naturally based on the conversation context.\n"
             except Exception as e:
                 print(f"❌ Enhanced knowledge search failed: {e}")
-                # Even on error, remind the LLM to use knowledge base
-                enhanced_context = f"\n\n=== EMBROKER KNOWLEDGE BASE ===\nUser asked: {message}\nProvide specific coverage information from Embroker's tech/cyber knowledge base.\n"
+                # On error, allow natural response
+                enhanced_context = "\n\n=== KNOWLEDGE SEARCH ERROR ===\nRespond naturally based on the conversation context.\n"
             
             # If no company name provided, try to get it from database/registration
             if not company_name and conversation_id:
@@ -1070,18 +783,11 @@ Contact our underwriting team for detailed quotes and policy customization based
             is_claims_example = any(keyword in message.lower() for keyword in ['claim example', 'claims example', 'example of a claim', 'example claim'])
             
             # Make API call with tools
-            # Force tool use ONLY for specific product/offering questions
-            force_tool_use = any(keyword in message.lower() for keyword in [
-                'what do you offer', 'what products', 'what coverage', 'what insurance',
-                'your products', 'your offerings', 'services do you', 'solutions do you',
-                'tell me about your', 'list your', 'show me your'
-            ])
-            
             response = self.openai_client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 tools=self.tools,
-                tool_choice={"type": "function", "function": {"name": "search_insurance_knowledge"}} if force_tool_use else "auto",
+                tool_choice="auto",
                 temperature=0.7,
                 max_tokens=800 if is_claims_example else None  # Allow longer responses for claims examples
             )
@@ -1144,7 +850,6 @@ Contact our underwriting team for detailed quotes and policy customization based
         return {
             "agent_type": "insurance_knowledge",
             "model": self.model,
-            "vector_store_available": self.vector_store_available, 
             "pinecone_available": self.pinecone_available,
             "web_search_available": web_status.get("web_search_available", False),
             "tools_count": len(self.tools),
