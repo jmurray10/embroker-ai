@@ -17,6 +17,7 @@ load_dotenv()
 # Core imports
 from agents.core.agents_insurance_chatbot import process_insurance_query, get_agent_status
 from agents.monitoring.parallel_monitoring_agent import monitor_conversation, check_escalation_signals, get_conversation_monitoring_status
+from agents.monitoring.abuse_prevention_agent import get_abuse_prevention_agent
 
 from agents.analysis.background_agent import get_company_agent
 from integrations.slack_routing import SlackRouter
@@ -472,7 +473,36 @@ def chat():
                      {"request_data": data, "session_id": session.get('conversation_id')}, "low")
             return jsonify({'error': 'Message is required'}), 400
         
-
+        # Get abuse prevention agent
+        abuse_prevention = get_abuse_prevention_agent()
+        
+        # Get IP address (handle proxies)
+        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+        if ',' in ip_address:
+            ip_address = ip_address.split(',')[0].strip()
+        
+        # Check if request is allowed
+        allowed, block_reason = abuse_prevention.check_request_allowed(ip_address, conversation_id)
+        if not allowed:
+            log_error(conversation_id, ValueError("Request blocked by abuse prevention"), 
+                     {"ip_address": ip_address, "reason": block_reason}, "high")
+            return jsonify({
+                'error': block_reason,
+                'blocked': True
+            }), 429
+        
+        # Track request in background (non-blocking)
+        abuse_prevention.add_request(
+            conversation_id=conversation_id,
+            user_id=session.get('user_id'),
+            ip_address=ip_address,
+            user_agent=request.headers.get('User-Agent', ''),
+            message=user_message,
+            metadata={
+                'session_id': session.get('session_id'),
+                'company_name': session.get('company_name')
+            }
+        )
         
         # Check for registration triggers based on message content
         if "quote" in user_message.lower() or "pricing" in user_message.lower():
@@ -486,7 +516,7 @@ def chat():
         log_chat(conversation_id, "user", user_message, 
                 user_id=session.get('user_id'),
                 metadata={
-                    "ip_address": request.remote_addr, 
+                    "ip_address": ip_address, 
                     "user_agent": request.headers.get('User-Agent'),
                     "session_data": {
                         "user_name": session.get('user_name'),
@@ -1432,6 +1462,75 @@ Respond with a JSON object:
         # Fallback: Check for explicit human requests only
         explicit_keywords = ['human', 'agent', 'speak to someone', 'talk to someone', 'transfer', 'representative']
         return any(keyword in user_message.lower() for keyword in explicit_keywords)
+
+@app.route('/api/abuse-prevention-stats')
+def get_abuse_prevention_stats():
+    """Get abuse prevention statistics"""
+    try:
+        abuse_prevention = get_abuse_prevention_agent()
+        stats = abuse_prevention.get_monitoring_stats()
+        
+        # Get recent abuse signals
+        signals = abuse_prevention.get_abuse_signals()
+        signal_data = []
+        for signal in signals[-10:]:  # Last 10 signals
+            signal_data.append({
+                'conversation_id': signal.conversation_id,
+                'abuse_type': signal.abuse_type,
+                'severity': signal.severity,
+                'confidence': signal.confidence,
+                'action': signal.action,
+                'ip_address': signal.ip_address,
+                'timestamp': signal.timestamp.isoformat(),
+                'indicators': signal.indicators
+            })
+        
+        return jsonify({
+            'success': True,
+            'statistics': stats,
+            'recent_signals': signal_data
+        })
+    except Exception as e:
+        log_error("system", e, {"endpoint": "get_abuse_prevention_stats"}, "medium")
+        return jsonify({'error': 'Failed to retrieve abuse prevention statistics'}), 500
+
+@app.route('/api/clear-blocked-ips', methods=['POST'])
+def clear_blocked_ips():
+    """Clear blocked IPs (admin endpoint)"""
+    try:
+        # In production, add authentication here
+        abuse_prevention = get_abuse_prevention_agent()
+        
+        # Clear specific IP or all
+        data = request.get_json() or {}
+        ip_address = data.get('ip_address')
+        
+        if ip_address:
+            # Clear specific IP
+            if ip_address in abuse_prevention.blocked_ips:
+                abuse_prevention.blocked_ips.remove(ip_address)
+                message = f"Unblocked IP: {ip_address}"
+            else:
+                message = f"IP {ip_address} was not blocked"
+        else:
+            # Clear all blocked IPs
+            count = len(abuse_prevention.blocked_ips)
+            abuse_prevention.blocked_ips.clear()
+            message = f"Cleared {count} blocked IPs"
+        
+        log_system("abuse_prevention_admin", {
+            "action": "clear_blocked_ips",
+            "ip_address": ip_address,
+            "message": message
+        })
+        
+        return jsonify({
+            'success': True,
+            'message': message
+        })
+    except Exception as e:
+        log_error("system", e, {"endpoint": "clear_blocked_ips"}, "high")
+        return jsonify({'error': 'Failed to clear blocked IPs'}), 500
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, host='0.0.0.0', port=8000)
