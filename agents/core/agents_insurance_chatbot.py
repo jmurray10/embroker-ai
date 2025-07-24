@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 from openai import OpenAI
 import pinecone
 from pinecone import Pinecone
-from integrations.web_search import get_web_search_agent, should_use_web_search
+from agents.analysis.web_search_agent import get_web_search_agent
 from integrations.embroker_knowledge_base import get_embroker_knowledge_base
 
 class InsuranceKnowledgeAgent:
@@ -171,6 +171,28 @@ class InsuranceKnowledgeAgent:
                             "query": {
                                 "type": "string",
                                 "description": "Specific search query for Embroker knowledge base"
+                            }
+                        },
+                        "required": ["query"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_web_information",
+                    "description": "REQUIRED for current events, recent news, market trends, regulatory updates, and any time-sensitive information (2024/2025 dates, 'latest', 'recent', 'current'). Search the web for real-time information.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "The search query for current information"
+                            },
+                            "context_size": {
+                                "type": "string",
+                                "enum": ["short", "medium", "long"],
+                                "description": "Amount of context to return (default: medium)"
                             }
                         },
                         "required": ["query"]
@@ -335,10 +357,17 @@ class InsuranceKnowledgeAgent:
             return f"I found some information but had trouble accessing it. Please contact our sales team for specific social engineering coverage limits and details."
     
     def _search_web_wrapper(self, query: str, context_size: str = "medium") -> str:
-        """Wrapper for web search functionality"""
+        """Wrapper for web search functionality using dedicated analysis agent"""
         try:
             web_agent = get_web_search_agent()
-            return web_agent.search_web(query, context_size)
+            # Use the web search analysis agent for current events
+            result = web_agent.search_current_events(query)
+            
+            if result['success']:
+                return result['results']
+            else:
+                return f"Web search error: {result.get('error', 'Unknown error')}"
+                
         except Exception as e:
             logging.error(f"[WebSearch] Error in web search wrapper: {str(e)}")
             return f"Web search temporarily unavailable: {str(e)}"
