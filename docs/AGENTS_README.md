@@ -1,290 +1,94 @@
-# AI Insurance Chatbot - Multi-Agent Architecture
+Agent Organization Structure
+Overview
+The agents have been reorganized into functional categories for better maintainability and scalability. Each category represents a specific domain of functionality within the insurance chatbot system.
 
-## Overview
+Directory Structure
+agents/
+├── core/                              # Core orchestration and session management
+│   ├── agents_insurance_chatbot.py   # Main orchestrator agent
+│   └── conversation_coordinator.py    # Session and thread management
+│
+├── analysis/                          # Risk analysis and decision-making
+│   ├── background_agent.py           # Company background analysis (NAIC API)
+│   ├── risk_assessment_agent.py      # Comprehensive risk report generation
+│   └── underwriting_agent.py         # Automated underwriting decisions
+│
+├── customer_service/                  # Customer interaction and applications
+│   ├── application_agent.py          # Basic application processing
+│   └── conversational_application_agent.py  # Conversational form completion
+│
+├── monitoring/                        # Real-time monitoring and escalation
+│   ├── parallel_monitoring_agent.py  # Asynchronous conversation monitoring
+│   └── escalation_agent.py           # Human handoff management
+│
+└── formatting/                        # Report formatting and presentation
+    └── risk_formatter_agent.py       # HTML report formatting
+Category Descriptions
+Core (/core)
+Purpose: Central coordination and orchestration of all agent activities
 
-The AI Insurance Chatbot uses a sophisticated multi-agent architecture to provide intelligent, context-aware insurance interactions. Each agent specializes in a specific aspect of the insurance workflow, working together to deliver comprehensive service.
+agents_insurance_chatbot.py: The main entry point for all insurance queries. Routes requests to specialized agents and synthesizes responses. Integrates with WebSearchAgent for real-time web search.
+conversation_coordinator.py: Manages conversation sessions, thread mapping, and state persistence across channels.
+Analysis (/analysis)
+Purpose: Data analysis, risk assessment, and decision-making
 
-## Agent Architecture Diagram
+background_agent.py: Retrieves and analyzes company information using external APIs (NAIC classification).
+risk_assessment_agent.py: Generates detailed risk assessment reports with coverage recommendations.
+underwriting_agent.py: Makes automated underwriting decisions based on company data and guidelines.
+Customer Service (/customer_service)
+Purpose: Direct customer interactions and application processing
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         User Interface                       │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────┴───────────────────────────────────────┐
-│                  Main Insurance Agent                        │
-│       (agents/core/agents_insurance_chatbot.py)              │
-│  • Primary conversational interface                          │
-│  • Knowledge retrieval from vector databases                 │
-│  • Response generation with GPT-4                            │
-└──────┬──────────────┬──────────────┬───────────────┬────────┘
-       │              │              │               │
-┌──────┴─────┐ ┌─────┴──────┐ ┌────┴─────┐ ┌──────┴────────┐
-│Background  │ │Application │ │  Risk    │ │ Underwriting  │
-│   Agent    │ │   Agent    │ │Assessment│ │    Agent      │
-└────────────┘ └────────────┘ └──────────┘ └───────────────┘
-       │
-┌──────┴─────────────────────────────────────────────────────┐
-│              Parallel Monitoring Agent (PMA)                │
-│  • Runs asynchronously in background                        │
-│  • Monitors all conversations for escalation triggers       │
-└──────────────────────┬─────────────────────────────────────┘
-                       │
-┌──────────────────────┴─────────────────────────────────────┐
-│         Conversation Coordinator & Escalation Agent         │
-│  • Manages session states                                   │
-│  • Handles Slack integration                                │
-│  • Routes escalations to human specialists                  │
-└─────────────────────────────────────────────────────────────┘
-```
+application_agent.py: Handles basic insurance application workflows.
+conversational_application_agent.py: Provides conversational interface for completing complex applications.
+Monitoring (/monitoring)
+Purpose: Real-time monitoring and human escalation
 
-## Agent Descriptions and Functions
+parallel_monitoring_agent.py: Runs asynchronously to monitor conversations for sentiment, complexity, and escalation needs.
+escalation_agent.py: Manages escalation to human specialists via Slack integration.
+Formatting (/formatting)
+Purpose: Professional report generation and formatting
 
-### 1. Main Insurance Agent (`agents/core/agents_insurance_chatbot.py`)
+risk_formatter_agent.py: Converts raw risk assessment data into professionally formatted HTML reports.
+Agent Communication Flow
+User Request
+    ↓
+[Core: Main Insurance Agent]
+    ├─→ [Analysis: Background Agent] → Company Data
+    ├─→ [Analysis: Risk Assessment] → Risk Reports
+    ├─→ [Customer Service: Application] → Form Processing
+    └─→ [Monitoring: PMA] → Real-time Analysis
+         └─→ [Monitoring: Escalation] → Human Handoff
+              ↓
+         [Formatting: Risk Formatter] → Professional Reports
+Import Examples
+After reorganization, imports should follow this pattern:
 
-**Purpose**: Primary customer-facing AI that handles all insurance-related queries.
+# Core agents
+from agents.core.agents_insurance_chatbot import InsuranceKnowledgeAgent
+from agents.core.conversation_coordinator import ConversationCoordinator
+# Analysis agents
+from agents.analysis.background_agent import get_company_agent
+from agents.analysis.risk_assessment_agent import RiskAssessmentAgent
+from agents.analysis.underwriting_agent import UnderwritingAgent
+# Customer service agents
+from agents.customer_service.application_agent import ApplicationAgent
+from agents.customer_service.conversational_application_agent import get_conversational_application_agent
+# Monitoring agents
+from agents.monitoring.parallel_monitoring_agent import ParallelMonitoringAgent
+from agents.monitoring.escalation_agent import EscalationAgent
+# Formatting agents
+from agents.formatting.risk_formatter_agent import RiskFormatterAgent
+Benefits of This Structure
+Clear Separation of Concerns: Each category has a specific purpose
+Easier Navigation: Developers can quickly find agents by function
+Scalability: New agents can be added to appropriate categories
+Maintainability: Related agents are grouped together
+Import Clarity: Import paths clearly indicate agent purpose
+Adding New Agents
+When adding new agents, follow these guidelines:
 
-**Key Functions**:
-- `process_message()`: Main async entry point for processing user messages
-- `_search_knowledge_wrapper()`: Searches vector databases (Pinecone/OpenAI) for relevant information
-- `_create_function_tools()`: Defines available tools like web search and underwriting analysis
-- `_search_vector_store()` & `_search_pinecone()`: Handles vector database queries
-
-**Capabilities**:
-- Multi-source knowledge retrieval (vector stores, knowledge base)
-- Intelligent query routing to specialized agents
-- Context-aware response generation
-- Tool integration (web search, underwriting, risk assessment)
-
-**Models Used**:
-- Main reasoning: `gpt-4.1-2025-04-14`
-- Fast operations: `gpt-4o-mini-2024-07-18`
-
-### 2. Background Agent / Company Analysis Agent (`agents/analysis/background_agent.py`)
-
-**Purpose**: Fetches and analyzes company information from external sources.
-
-**Key Functions**:
-- `get_analysis()`: Main analysis function that retrieves company data
-- `_analyze_via_website()`: Analyzes company using website URL
-- `_analyze_via_company_name()`: Analyzes company using name only
-- `_format_analysis()`: Formats API responses into readable summaries
-- `start_background_analysis()`: Initiates background thread for async processing
-
-**Capabilities**:
-- NAIC API integration for industry classification
-- Company risk profile analysis
-- Caching to reduce API calls
-- Background processing for non-blocking operations
-
-### 3. Risk Assessment Agent (`agents/analysis/risk_assessment_agent.py`)
-
-**Purpose**: Generates detailed, professional risk assessment reports.
-
-**Key Functions**:
-- `generate_risk_assessment_report()`: Creates comprehensive risk reports
-- `_build_enhanced_assessment_prompt()`: Structures data for AI analysis
-- Integration with Embroker knowledge base for industry insights
-
-**Capabilities**:
-- Professional report generation using GPT-4
-- Coverage recommendations with justifications
-- Industry-specific risk analysis
-- Real claim examples based on classification codes
-- Formatted output for easy reading
-
-**Report Sections**:
-1. Executive Summary with operations overview
-2. Risk Manager's Analysis
-3. Coverage Recommendations (Tech E&O, EPLI, D&O, General Liability)
-4. Industry-specific claim examples
-
-### 4. Application Agent (`agents/customer_service/application_agent.py`)
-
-**Purpose**: Guides users through the insurance application process conversationally.
-
-**Key Functions**:
-- `can_handle_query()`: Determines if the message is application-related
-- `process_application_query()`: Main function for handling application queries
-- `_get_application_instructions()`: Returns agent's specialized instructions
-- `get_agent_status()`: Returns agent health and configuration status
-
-**Application Sections**:
-1. Company Profile (name, website, description, revenue)
-2. Technology & Security (tech stack, data handling)
-3. Coverage Requirements (limits, deductibles)
-4. Risk Management (policies, procedures)
-5. Claims History
-
-**Features**:
-- Conversational data collection
-- Real-time validation
-- Progress tracking
-- NAIC integration for industry classification
-
-### 5. Underwriting Agent (`agents/analysis/underwriting_agent.py`)
-
-**Purpose**: Performs automated underwriting analysis and decisions.
-
-**Key Functions**:
-- `analyze_underwriting_eligibility()`: Main underwriting decision function
-- `get_underwriting_decision()`: Returns structured underwriting decision
-- Risk factor assessment based on industry and company data
-- Eligibility determination with clear reasoning
-
-**Decision Types**:
-- **Accept**: Meets all criteria, standard terms
-- **Review**: Requires human underwriter evaluation
-- **Decline**: Does not meet minimum requirements
-
-**Analysis Factors**:
-- Industry risk level
-- Company size and revenue
-- Technology practices
-- Claims history
-- Compliance status
-
-### 6. Parallel Monitoring Agent (PMA) (`agents/monitoring/parallel_monitoring_agent.py`)
-
-**Purpose**: Asynchronously monitors all conversations for escalation triggers.
-
-**Key Functions**:
-- `add_conversation_event()`: Non-blocking event addition to monitoring queue
-- `_monitoring_loop()`: Continuous background monitoring thread
-- `_analyze_conversation_event()`: AI-powered conversation analysis
-- `_evaluate_escalation_criteria()`: Determines escalation need based on multiple factors
-- `_generate_escalation_signal()`: Creates escalation alerts with confidence scores
-- `get_conversation_status()`: Returns current status and analytics for a conversation
-
-**Monitoring Criteria**:
-- User frustration indicators
-- Sentiment degradation
-- Complex technical queries
-- Repeated questions
-- Explicit escalation requests
-
-**Features**:
-- Dedicated API key support for independent operation
-- Non-blocking architecture (doesn't slow main chat)
-- Sentiment tracking over conversation history
-- Configurable escalation thresholds
-
-### 7. Conversation Coordinator (`agents/core/conversation_coordinator.py`)
-
-**Purpose**: Manages conversation sessions and Slack integration.
-
-**Key Functions**:
-- `create_session()`: Initializes new conversation sessions
-- `escalate_session()`: Links conversations to Slack threads
-- `queue_slack_message()`: Handles incoming Slack messages
-- `get_session_by_thread()`: Maps Slack threads to conversations
-- Session persistence and recovery
-
-**Session Management**:
-- Unique conversation IDs
-- Bidirectional Slack mapping
-- Message history tracking
-- Status management (active, escalated, resolved)
-- Persistent storage for recovery
-
-### 8. Escalation Agent (`agents/monitoring/escalation_agent.py`)
-
-**Purpose**: Handles the escalation process to human specialists.
-
-**Key Functions**:
-- `create_escalation()`: Main escalation orchestration function
-- `get_escalation_analysis()`: Analyzes conversation to determine escalation details
-- `notify_specialists()`: Sends notifications via Slack integration
-- `get_customer_response()`: Generates appropriate customer-facing messages
-
-**Escalation Types**:
-- UNDERWRITING_REVIEW
-- COMPLEX_QUOTE
-- COMPLIANCE_ISSUE
-- CUSTOMER_COMPLAINT
-- TECHNICAL_ISSUE
-- HIGH_VALUE_ACCOUNT
-
-**Routing Rules**:
-- Each type routes to specific teams
-- Priority-based response times
-- Formatted Slack notifications with context
-- Customer communication templates
-
-### 9. Risk Formatter Agent (`agents/formatting/risk_formatter_agent.py`)
-
-**Purpose**: Transforms raw risk assessment text into polished HTML reports.
-
-**Key Functions**:
-- `format_risk_report()`: Converts text to structured HTML
-- AI-powered formatting for consistency
-- Professional styling application
-
-**Output Features**:
-- Clean, professional HTML layout
-- Consistent formatting across reports
-- Responsive design
-- Print-friendly styling
-
-## Agent Interaction Flow
-
-### Standard Conversation Flow:
-1. User sends message → Main Insurance Agent
-2. Main Agent retrieves knowledge → Vector stores/Knowledge base
-3. Main Agent may invoke specialized agents:
-   - Background Agent for company data
-   - Risk Assessment for reports
-   - Application Agent for forms
-   - Underwriting for decisions
-4. Response generated → User
-
-### Parallel Monitoring Flow:
-1. All conversations → PMA (asynchronous)
-2. PMA analyzes sentiment and complexity
-3. If escalation needed → Escalation Signal
-4. Conversation Coordinator receives signal
-5. Escalation Agent creates Slack thread
-6. Human specialist joins conversation
-
-### Escalation Flow:
-1. Trigger detected (by PMA or user request)
-2. Escalation Agent analyzes need
-3. Slack notification sent to appropriate team
-4. Conversation Coordinator links chat to Slack
-5. Bidirectional messaging enabled
-6. Specialist responses routed back to user
-
-## Key Technologies
-
-- **AI Models**: GPT-4, GPT-4o-mini
-- **Vector Databases**: Pinecone, OpenAI Vector Store
-- **Knowledge Base**: Embroker-specific insurance knowledge
-- **External APIs**: NAIC Classification API
-- **Communication**: Slack (Socket Mode & Webhooks)
-- **Framework**: Asynchronous Python with threading
-
-## Configuration Requirements
-
-### Environment Variables:
-- `POC_OPENAI_API`: Main OpenAI API key
-- `OPENAI_MONITORING_KEY`: Dedicated key for PMA (optional)
-- `PINECONE_API_KEY`: For vector search
-- `SLACK_BOT_TOKEN`: Slack bot authentication
-- `SLACK_ESCALATION_CHANNEL`: Target channel for escalations
-
-### Performance Considerations:
-- PMA runs on separate thread for non-blocking operation
-- Conversation Coordinator uses efficient session mapping
-- Background Agent implements caching
-- Vector search uses fast model for query optimization
-
-## Agent Benefits
-
-1. **Specialization**: Each agent focuses on specific expertise
-2. **Scalability**: Agents can be scaled independently
-3. **Reliability**: Failure isolation between agents
-4. **Flexibility**: Easy to add new agents or modify existing ones
-5. **Performance**: Parallel processing and async operations
-6. **Human-in-the-loop**: Seamless escalation when needed
-
-This multi-agent architecture ensures comprehensive, intelligent, and efficient insurance interactions while maintaining the flexibility to handle complex scenarios and escalate to human experts when necessary.
+Determine the primary function of the agent
+Place it in the appropriate category directory
+Update imports in dependent files
+Add documentation to this README
+Follow the naming convention: {function}_agent.py
