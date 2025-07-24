@@ -1285,10 +1285,10 @@
     </div>
 
     <!-- Registration Form -->
-    <div class="registration-container" id="registrationContainer" style="display: {% if is_registered %}none{% else %}flex{% endif %};">
+    <div class="registration-container" id="registrationContainer">
         <div class="registration-form">
-            <h2>Welcome to AI Insurance Assistant</h2>
-            <p>Please provide your information to get started with personalized insurance assistance.</p>
+            <h2>Create Your Account</h2>
+            <p>Register to save conversations, access chat history, and generate risk reports</p>
             
             <form id="registrationForm">
                 <div class="form-group">
@@ -1364,11 +1364,43 @@
     </div>
 
     <!-- Chat Interface -->
-    <div class="chat-container" id="chatContainer" style="display: {% if is_registered %}flex{% else %}none{% endif %};">
-        <div class="messages-container" id="messagesContainer">
+    <div class="chat-container" id="chatContainer" style="display: flex;">
+        <!-- Registration Banner for Anonymous Users -->
+        <div id="registrationBanner" style="
+            background: #f0f9ff;
+            border-bottom: 1px solid #e0f2fe;
+            padding: 0.75rem 1rem;
+            display: {% if is_registered %}none{% else %}flex{% endif %};
+            align-items: center;
+            justify-content: space-between;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        ">
+            <div style="flex: 1;">
+                <p style="margin: 0; color: #0c4a6e; font-size: 0.9rem;">
+                    <strong>Start chatting immediately!</strong> Register to save conversations, view history, and generate risk reports.
+                </p>
+            </div>
+            <button onclick="showRegistrationForm()" style="
+                background: #0284c7;
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 0.375rem;
+                font-size: 0.875rem;
+                cursor: pointer;
+                white-space: nowrap;
+                margin-left: 1rem;
+            ">Create Account</button>
+        </div>
+        
+        <div class="messages-container" id="messagesContainer" style="{% if not is_registered %}padding-top: 3rem;{% endif %}">
             <div class="welcome-message">
-                <h2>I'm Shotwel, your AI assistant.</h2>
-                <p>I'm here to help you navigate insurance questions, whether it's about your policy, a claim you're filing, or researching coverage options. What can I help you with today?</p>
+                <h2>Hi! I'm Embroker AI, your insurance specialist</h2>
+                <p>I'm equipped with advanced tools for insurance knowledge search and company risk analysis. How can I help you today?</p>
             </div>
         </div>
 
@@ -1500,6 +1532,13 @@
                     registrationContainer.style.display = 'none';
                     chatContainer.style.display = 'flex';
                     
+                    // Hide registration banner after successful registration
+                    const banner = document.getElementById('registrationBanner');
+                    if (banner) banner.style.display = 'none';
+                    
+                    // Remove top padding from messages container
+                    messagesContainer.style.paddingTop = '0';
+                    
                     // Start message polling for notifications
                     startMessagePolling(currentConversationId);
                     
@@ -1613,6 +1652,16 @@
             typingIndicator.style.display = 'none';
         }
 
+        // Progressive registration function
+        function showRegistrationForm() {
+            // Hide the banner
+            document.getElementById('registrationBanner').style.display = 'none';
+            // Show the registration form
+            document.getElementById('registrationContainer').style.display = 'flex';
+            // Focus on the first input
+            document.getElementById('userName').focus();
+        }
+
         function scrollToBottom() {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
@@ -1723,7 +1772,17 @@
                         console.log('Routing Analysis:', data.routing_info);
                     }
                 } else {
-                    addMessage('Sorry, I encountered an error. Please try again.', false);
+                    // Handle different error types
+                    if (response.status === 429 && data.rate_limited) {
+                        // Rate limiting error
+                        addMessage(data.error || 'You are sending messages too quickly. Please slow down.', false);
+                    } else if (response.status === 400 && data.off_topic) {
+                        // Off-topic error
+                        addMessage(data.error || 'Please keep your questions related to insurance and business coverage.', false);
+                    } else {
+                        // Generic error
+                        addMessage(data.error || 'Sorry, I encountered an error. Please try again.', false);
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -1733,6 +1792,11 @@
                 setInputState(false);
                 messageInput.focus();
             }
+        }
+
+        function startAnonymousChat() {
+            // Call the chat anonymous endpoint to start anonymous session
+            window.location.href = '/chat-anonymous';
         }
 
         function startNewChat() {
@@ -2008,12 +2072,20 @@
                 const response = await fetch('/api/session-info');
                 const sessionInfo = await response.json();
                 
-                if (sessionInfo.success && sessionInfo.registered && sessionInfo.conversation_id) {
+                if (sessionInfo.success && sessionInfo.conversation_id) {
                     currentConversationId = sessionInfo.conversation_id;
                     console.log('Restored conversation ID from session:', currentConversationId);
                     
-                    // Start message polling
+                    // Start message polling for both registered and anonymous users
                     startMessagePolling(currentConversationId);
+                    
+                    // Update UI based on registration status
+                    if (sessionInfo.registered) {
+                        // Hide registration banner for registered users
+                        const banner = document.getElementById('registrationBanner');
+                        if (banner) banner.style.display = 'none';
+                        messagesContainer.style.paddingTop = '0';
+                    }
                 }
             } catch (error) {
                 console.error('Error checking session:', error);

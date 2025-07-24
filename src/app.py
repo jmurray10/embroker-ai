@@ -1,5 +1,5 @@
 # app.py - Simplified Insurance Chatbot Application
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect
 import uuid
 import os
 import sys
@@ -10,7 +10,6 @@ import time
 import asyncio
 from dotenv import load_dotenv
 from src.models import db, User, Conversation, Message
-from sqlalchemy import text
 
 # Load environment variables
 load_dotenv()
@@ -18,7 +17,7 @@ load_dotenv()
 # Core imports
 from agents.core.agents_insurance_chatbot import process_insurance_query, get_agent_status
 from agents.monitoring.parallel_monitoring_agent import monitor_conversation, check_escalation_signals, get_conversation_monitoring_status
-from integrations.openai_vector_store import OpenAIVectorStore
+
 from agents.analysis.background_agent import get_company_agent
 from integrations.slack_routing import SlackRouter
 from integrations.slack_webhook_handler import slack_bp
@@ -30,8 +29,6 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 import threading
 import atexit
 import json
-from datetime import datetime
-from dataclasses import asdict
 from openai import OpenAI
 
 app = Flask(__name__, 
@@ -63,7 +60,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 app.register_blueprint(slack_bp)
 
 # Initialize chatbot components
-vector_store = OpenAIVectorStore()
+# OpenAI Vector Store removed - system uses direct file_search API instead
 slack_router = SlackRouter()
 
 # Initialize Socket Mode handler for Slack buttons
@@ -71,15 +68,7 @@ socket_handler = None
 socket_thread = None
 
 # Initialize OpenAI client for escalation analysis
-# Work around httpx proxy issue
-import httpx
-api_key = os.getenv("POC_OPENAI_API")
-if api_key:
-    http_client = httpx.Client()
-    openai_client = OpenAI(api_key=api_key, http_client=http_client)
-else:
-    openai_client = None
-    print("Warning: POC_OPENAI_API not set, some features may not work")
+openai_client = OpenAI(api_key=os.getenv("POC_OPENAI_API"))
 
 def start_socket_mode():
     """Initialize and start Socket Mode handler in background thread"""
@@ -261,32 +250,30 @@ def format_coverage_card(items):
     card_html += '</div>\n'
     return card_html
 
-@app.route('/health')
-def health_check():
-    """Health check endpoint for Docker and monitoring"""
-    try:
-        # Check database connection if configured
-        if database_url:
-            db.session.execute(text('SELECT 1'))
-        
-        # Check Pinecone connection
-        pinecone_status = "not configured"
-        if os.getenv("PINECONE_API_KEY"):
-            pinecone_status = "configured"
-        
-        return jsonify({
-            "status": "healthy",
-            "service": "embroker-insurance-chatbot",
-            "database": "connected" if database_url else "not configured",
-            "pinecone": pinecone_status,
-            "timestamp": datetime.now().isoformat()
-        }), 200
-    except Exception as e:
-        return jsonify({
-            "status": "unhealthy",
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }), 503
+def check_should_prompt_registration():
+    """Check if user should be prompted to register based on interaction criteria"""
+    if session.get('user_registered', False):
+        return False
+    
+    message_count = session.get('message_count', 0)
+    
+    # Progressive registration triggers
+    triggers = {
+        'after_messages': message_count >= 3,  # After 3 messages
+        'quote_requested': session.get('quote_requested', False),  # When asking for quotes
+        'risk_assessment_requested': session.get('risk_assessment_requested', False),  # When asking for risk assessment
+        'application_started': session.get('application_started', False),  # When starting an application
+        'advanced_feature': session.get('advanced_feature_requested', False)  # When using advanced features
+    }
+    
+    # Return trigger info and whether to prompt
+    should_prompt = any(triggers.values())
+    
+    return {
+        'should_prompt': should_prompt,
+        'triggers': triggers,
+        'message_count': message_count
+    }
 
 @app.route('/')
 def index():
@@ -297,19 +284,14 @@ def index():
 @app.route('/api/session-info', methods=['GET'])
 def get_session_info():
     """Get current session information including conversation ID"""
-    if session.get('user_registered'):
-        return jsonify({
-            'success': True,
-            'conversation_id': session.get('conversation_id'),
-            'user_name': session.get('user_name'),
-            'company_name': session.get('company_name'),
-            'registered': True
-        })
-    else:
-        return jsonify({
-            'success': True,
-            'registered': False
-        })
+    return jsonify({
+        'success': True,
+        'conversation_id': session.get('conversation_id'),
+        'user_name': session.get('user_name'),
+        'company_name': session.get('company_name'),
+        'registered': session.get('user_registered', False),
+        'message_count': session.get('message_count', 0)
+    })
 
 @app.route('/register', methods=['POST'])
 def register_user():
@@ -358,12 +340,15 @@ def register_user():
         session['user_name'] = name
         session['company_name'] = company_name
         session['company_email'] = company_email
+        
+        # Create new conversation for registered user
         conversation_id = str(uuid.uuid4())
         session['conversation_id'] = conversation_id
         session['conversation_history'] = []
         
         # Create conversation record in database for persistence
         try:
+            # Create new conversation
             new_conversation = Conversation(
                 id=conversation_id,
                 user_id=user_id
@@ -372,7 +357,7 @@ def register_user():
             db.session.commit()
             print(f"Conversation record created: {conversation_id}")
         except Exception as e:
-            print(f"Database error creating conversation: {e}")
+            print(f"Database error with conversation: {e}")
         
         # Start background company analysis using NAIC API with user notifications
         try:
@@ -397,6 +382,8 @@ def register_user():
     except Exception as e:
         print(f"Registration error: {e}")
         return jsonify({'error': 'Registration failed'}), 500
+
+
 
 @app.route('/conversation/<conversation_id>')
 def get_conversation(conversation_id):
@@ -447,12 +434,29 @@ def load_user_data(conversation_id):
         print(f"Error loading user data: {e}")
         return jsonify({'has_existing_data': False, 'error': str(e)})
 
+
+
 @app.route('/chat/<conversation_id>')
 def chat_page(conversation_id):
     """Direct chat page access with conversation ID"""
     # Set conversation ID in session for continuity
     session['conversation_id'] = conversation_id
     return render_template('chat.html', conversation_id=conversation_id)
+
+@app.route('/chat')
+def chat_interface():
+    """Display the chat interface"""
+    print(f"[DEBUG] /chat GET accessed, session: {dict(session)}")
+    
+    # Check if user is registered
+    if not session.get('user_registered'):
+        print("[DEBUG] User not registered, redirecting to home")
+        return redirect('/')
+    
+    print(f"[DEBUG] Displaying chat interface for conversation: {session['conversation_id']}")
+    return render_template('chat.html', 
+                         conversation_id=session['conversation_id'],
+                         is_anonymous=False)
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -468,6 +472,16 @@ def chat():
                      {"request_data": data, "session_id": session.get('conversation_id')}, "low")
             return jsonify({'error': 'Message is required'}), 400
         
+
+        
+        # Check for registration triggers based on message content
+        if "quote" in user_message.lower() or "pricing" in user_message.lower():
+            session['quote_requested'] = True
+        if "risk assessment" in user_message.lower() or "risk report" in user_message.lower():
+            session['risk_assessment_requested'] = True
+        if "application" in user_message.lower() or "apply" in user_message.lower():
+            session['application_started'] = True
+            
         # Log incoming user message
         log_chat(conversation_id, "user", user_message, 
                 user_id=session.get('user_id'),
@@ -556,14 +570,8 @@ def chat():
         else:
             session['conversation_history'] = conversation_history  # Keep entire history
         
-        # Send conversation to Enhanced Parallel Monitoring Agent (async, non-blocking)
-        monitor_conversation(conversation_id, user_message, ai_reply, 
-                           response_time_ms=ai_response_time,
-                           session_metadata={
-                               'user_name': session.get('user_name'),
-                               'company_name': session.get('company_name'),
-                               'conversation_length': len(conversation_history)
-                           })
+        # Send conversation to Parallel Monitoring Agent (async, non-blocking)
+        monitor_conversation(conversation_id, user_message, ai_reply)
         
         # Store in database if available
         if database_url and session.get('user_id'):
@@ -607,11 +615,17 @@ def chat():
             "response_length": len(ai_reply)
         })
         
-        return jsonify({
+        # Check if we should prompt for registration
+        registration_check = check_should_prompt_registration()
+        
+        response_data = {
             "response": ai_reply,
             "conversation_id": conversation_id,
-            "specialist_active": False
-        })
+            "specialist_active": False,
+            "should_prompt_registration": registration_check
+        }
+        
+        return jsonify(response_data)
         
     except Exception as e:
         # Log critical chat errors with full context
@@ -713,7 +727,7 @@ def check_messages(conversation_id):
 
 @app.route('/monitoring/status')
 def monitoring_status():
-    """Get basic Parallel Monitoring Agent status"""
+    """Get Parallel Monitoring Agent status"""
     try:
         from agents.monitoring.parallel_monitoring_agent import get_monitoring_agent
         agent = get_monitoring_agent()
@@ -730,77 +744,6 @@ def monitoring_status():
         return jsonify({
             'error': str(e),
             'timestamp': time.time()
-        }), 500
-
-@app.route('/monitoring/dashboard')
-def monitoring_dashboard():
-    """Get comprehensive monitoring dashboard with enhanced analytics"""
-    try:
-        from agents.monitoring.parallel_monitoring_agent import get_monitoring_agent
-        agent = get_monitoring_agent()
-        
-        dashboard_data = agent.get_analytics_dashboard()
-        
-        return jsonify({
-            'success': True,
-            'dashboard': dashboard_data,
-            'version': '2.0'
-        })
-    except Exception as e:
-        log_error("system", e, {"endpoint": "monitoring_dashboard"}, "medium")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'timestamp': time.time()
-        }), 500
-
-@app.route('/monitoring/analytics/<conversation_id>')
-def get_conversation_analytics(conversation_id):
-    """Get detailed analytics for a specific conversation"""
-    try:
-        from agents.monitoring.parallel_monitoring_agent import get_monitoring_agent
-        agent = get_monitoring_agent()
-        
-        analytics = agent.conversation_analytics.get(conversation_id)
-        if analytics:
-            return jsonify({
-                'success': True,
-                'conversation_id': conversation_id,
-                'analytics': asdict(analytics)
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'Analytics not available for this conversation'
-            }), 404
-            
-    except Exception as e:
-        log_error("system", e, {"endpoint": "get_conversation_analytics", "conversation_id": conversation_id}, "medium")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-@app.route('/monitoring/insights')
-def get_monitoring_insights():
-    """Get AI-generated insights from monitoring data"""
-    try:
-        from agents.monitoring.parallel_monitoring_agent import get_monitoring_agent
-        agent = get_monitoring_agent()
-        
-        dashboard_data = agent.get_analytics_dashboard()
-        insights = dashboard_data.get('insights', [])
-        
-        return jsonify({
-            'success': True,
-            'insights': insights,
-            'generated_at': datetime.now().isoformat()
-        })
-    except Exception as e:
-        log_error("system", e, {"endpoint": "get_monitoring_insights"}, "medium")
-        return jsonify({
-            'success': False,
-            'error': str(e)
         }), 500
 
 # Comprehensive Logging and Analytics Endpoints
@@ -1042,7 +985,7 @@ def logs_dashboard():
         recent_errors = chat_logger.get_error_logs(resolved=False, limit=10)
         
         log_system("dashboard_access", {
-            "user_name": session.get('user_name', 'anonymous'),
+            "user_name": session.get('user_name', 'User'),
             "days_filter": days,
             "ip_address": request.remote_addr
         })
@@ -1056,19 +999,9 @@ def logs_dashboard():
         log_error("system", e, {"endpoint": "logs_dashboard", "days": request.args.get('days')}, "high")
         return f"Dashboard error: {str(e)}", 500
 
-@app.route('/admin/monitoring')
-def enhanced_monitoring_dashboard():
-    """Enhanced Parallel Monitoring Agent dashboard"""
-    try:
-        log_system("monitoring_dashboard_access", {
-            "user_name": session.get('user_name', 'anonymous'),
-            "ip_address": request.remote_addr
-        })
-        
-        return render_template('monitoring_dashboard.html')
-    except Exception as e:
-        log_error("system", e, {"endpoint": "enhanced_monitoring_dashboard"}, "high")
-        return f"Monitoring dashboard error: {str(e)}", 500
+
+
+
 
 @app.route('/health')
 def health():
@@ -1128,20 +1061,105 @@ def handle_send_message(data):
             'timestamp': time.time()
         }, to=conversation_id)
 
+@app.route('/api/chat-history')
+def get_chat_history():
+    """Get the user's chat history"""
+    try:
+        # Get current user from session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'conversations': []})
+        
+        # Retrieve conversations from database
+        conversations = []
+        try:
+            with app.app_context():
+                # Get user's conversations ordered by last activity
+                user_conversations = Conversation.query.filter_by(user_id=user_id).order_by(Conversation.created_at.desc()).limit(20).all()
+                
+                for conv in user_conversations:
+                    # Get last message for preview
+                    last_message = Message.query.filter_by(conversation_id=conv.id).order_by(Message.created_at.desc()).first()
+                    
+                    conversations.append({
+                        'id': conv.id,
+                        'created_at': conv.created_at.isoformat() if conv.created_at else '',
+                        'last_message': last_message.content[:50] + '...' if last_message and len(last_message.content) > 50 else (last_message.content if last_message else 'New conversation'),
+                        'is_current': conv.id == session.get('conversation_id', '')
+                    })
+        except Exception as e:
+            # If database not available, return empty list
+            pass
+        
+        return jsonify({
+            'success': True,
+            'conversations': conversations
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/load-conversation/<conversation_id>')
+def load_conversation(conversation_id):
+    """Load a specific conversation and its messages"""
+    try:
+        # Check if user has access to this conversation
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        # Get conversation and messages
+        messages = []
+        try:
+            with app.app_context():
+                conversation = Conversation.query.get(conversation_id)
+                if not conversation or conversation.user_id != user_id:
+                    return jsonify({'success': False, 'error': 'Conversation not found'}), 404
+                
+                # Get all messages for this conversation
+                conv_messages = Message.query.filter_by(conversation_id=conversation_id).order_by(Message.created_at.asc()).all()
+                
+                for msg in conv_messages:
+                    messages.append({
+                        'role': msg.role,
+                        'content': msg.content,
+                        'created_at': msg.created_at.isoformat() if msg.created_at else ''
+                    })
+                
+                # Update session with new conversation ID
+                session['conversation_id'] = conversation_id
+                
+        except Exception as e:
+            # If database error, still allow switching conversation
+            session['conversation_id'] = conversation_id
+            pass
+        
+        return jsonify({
+            'success': True,
+            'conversation_id': conversation_id,
+            'messages': messages
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/risk-assessment/<conversation_id>')
 def get_risk_assessment(conversation_id):
     """Get risk assessment report for a conversation"""
     try:
-        # Check for stored risk assessment reports
-        stored_reports = {}
-        if hasattr(app, 'risk_reports'):
-            stored_reports = app.risk_reports
+        # Check for stored risk assessment reports in background agent
+        from agents.analysis.background_agent import get_company_agent
+        company_agent = get_company_agent()
         
-        if conversation_id in stored_reports:
+        stored_report = company_agent.get_risk_assessment(conversation_id)
+        print(f"[RISK API] Looking for conversation: {conversation_id}")
+        print(f"[RISK API] Found report: {bool(stored_report)}")
+        
+        if stored_report:
             # Format the cached report using AI agent
             from agents.formatting.risk_formatter_agent import get_formatter_agent
             formatter = get_formatter_agent()
-            formatted_report = formatter.format_risk_report(stored_reports[conversation_id])
+            formatted_report = formatter.format_risk_report(stored_report)
             return jsonify({
                 'success': True,
                 'report': formatted_report,
@@ -1178,9 +1196,6 @@ def get_risk_assessment(conversation_id):
             
             # Get analysis from background agent (should contain API response)
             background_analysis = company_agent.get_analysis(company_name)
-            print(f"[RISK ASSESSMENT] Retrieved analysis for {company_name}, length: {len(background_analysis) if background_analysis else 0}")
-            if background_analysis:
-                print(f"[RISK ASSESSMENT] Analysis starts with: {background_analysis[:200]}...")
             
             if background_analysis and len(background_analysis) > 100 and "being prepared" not in background_analysis:
                 # Try to parse JSON data from background analysis
@@ -1201,6 +1216,9 @@ def get_risk_assessment(conversation_id):
                         if not hasattr(app, 'risk_reports'):
                             app.risk_reports = {}
                         app.risk_reports[conversation_id] = risk_report
+                        print(f"[RISK STORE] Stored report for conversation: {conversation_id}")
+                        print(f"[RISK STORE] Report length: {len(risk_report)}")
+                        print(f"[RISK STORE] All stored conversations: {list(app.risk_reports.keys())}")
                         
                         # Risk assessment completed successfully
                         
@@ -1307,10 +1325,9 @@ def generate_risk_assessment():
                     
                     risk_report = risk_agent.generate_risk_assessment_report(classification_data, company_name)
                     
-                    # Store the report
-                    if not hasattr(app, 'risk_reports'):
-                        app.risk_reports = {}
-                    app.risk_reports[conversation_id] = risk_report
+                    # Store the report in background agent cache instead of app state
+                    # (app state doesn't persist across gunicorn workers)
+                    company_agent.store_risk_assessment(conversation_id, risk_report)
                     
                     print(f"Background risk assessment stored for conversation {conversation_id}: {len(risk_report)} characters")
                     

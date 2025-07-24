@@ -969,6 +969,61 @@
             </div>
         </div>
 
+
+
+        <!-- Progressive Registration Prompt -->
+        <div id="registrationPrompt" style="
+            display: none;
+            padding: 1rem;
+            background: linear-gradient(to right, #f0f9ff, #e0f2fe);
+            border-top: 1px solid #0ea5e9;
+            animation: slideUp 0.3s ease-out;
+        ">
+            <div style="max-width: 700px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
+                    <div style="flex: 1;">
+                        <h3 style="margin: 0 0 0.5rem 0; color: #0c4a6e; font-size: 1.1rem;">
+                            🎯 Unlock Full Insurance Capabilities
+                        </h3>
+                        <p style="margin: 0 0 0.5rem 0; color: #0369a1; font-size: 0.9rem;">
+                            Register to access personalized quotes, risk assessments, and company analysis.
+                        </p>
+                        <ul style="margin: 0; padding-left: 1.2rem; color: #0284c7; font-size: 0.85rem;">
+                            <li>Generate custom insurance quotes</li>
+                            <li>Get detailed risk assessment reports</li>
+                            <li>Start insurance applications</li>
+                            <li>Save conversation history</li>
+                        </ul>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button onclick="showRegistrationForm()" style="
+                            background: #0ea5e9;
+                            color: white;
+                            border: none;
+                            padding: 0.75rem 1.5rem;
+                            border-radius: 0.5rem;
+                            font-weight: 600;
+                            cursor: pointer;
+                            transition: background 0.2s;
+                        " onmouseover="this.style.background='#0284c7'" onmouseout="this.style.background='#0ea5e9'">
+                            Register Now
+                        </button>
+                        <button onclick="dismissRegistrationPrompt()" style="
+                            background: transparent;
+                            color: #6b7280;
+                            border: none;
+                            padding: 0.5rem;
+                            font-size: 0.85rem;
+                            cursor: pointer;
+                            text-decoration: underline;
+                        ">
+                            Maybe later
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="input-container">
             <div class="input-wrapper">
                 <textarea 
@@ -1012,6 +1067,17 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         #riskAssessmentContent {
@@ -1275,7 +1341,8 @@
             };
         }
 
-        async function sendMessage() {
+        // Make sendMessage globally accessible for onclick handler
+        window.sendMessage = async function() {
             const message = messageInput.value.trim();
             if (!message) return;
 
@@ -1325,9 +1392,17 @@
                     hideProgressUpdate();
                     addMessage(data.response, false, true);
                     currentConversationId = data.conversation_id;
+                    
+                    // Check if we should show registration prompt
+                    if (data.should_prompt_registration && data.should_prompt_registration.should_prompt) {
+                        showRegistrationPrompt();
+                    }
+                    
+
                 } else {
                     hideProgressUpdate();
                     addMessage('Sorry, I encountered an error. Please try again.', false);
+
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -1388,7 +1463,10 @@
             } catch (error) {
                 console.error('Error checking status:', error);
                 addMessage('Error checking agent status.', false);
-// --- SocketIO Real-Time Session Integration ---
+            }
+        }
+
+        // --- SocketIO Real-Time Session Integration ---
         let socket = null;
 
         function connectSocketIO() {
@@ -1530,6 +1608,30 @@
             }, 1000);
         }
 
+        // Registration prompt functions
+        function showRegistrationPrompt() {
+            const prompt = document.getElementById('registrationPrompt');
+            if (prompt && prompt.style.display === 'none') {
+                prompt.style.display = 'block';
+                // Add slide animation
+                prompt.style.animation = 'slideUp 0.3s ease-out';
+            }
+        }
+        
+        function dismissRegistrationPrompt() {
+            const prompt = document.getElementById('registrationPrompt');
+            if (prompt) {
+                prompt.style.display = 'none';
+                // Store that user dismissed the prompt this session
+                sessionStorage.setItem('registrationPromptDismissed', 'true');
+            }
+        }
+        
+        function showRegistrationForm() {
+            // Navigate to registration or show modal
+            window.location.href = '/';
+        }
+
         // Initialize
         messageInput.focus();
         // Sidebar functionality
@@ -1593,40 +1695,79 @@
 
         // Chat history management
         function loadChatHistory() {
-            // This would typically load from backend
-            const sampleChats = [
-                {
-                    id: 'chat-1',
-                    title: 'Tech E&O Coverage Questions',
-                    preview: 'What are the coverage limits for professional liability...',
-                    date: new Date(Date.now() - 24 * 60 * 60 * 1000)
-                },
-                {
-                    id: 'chat-2', 
-                    title: 'Cyber Insurance Inquiry',
-                    preview: 'I need information about data breach coverage...',
-                    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-                }
-            ];
-            
             const chatList = document.getElementById('chatHistoryList');
-            chatList.innerHTML = sampleChats.map(chat => `
-                <div class="chat-item" onclick="loadChat('${chat.id}')">
-                    <div class="chat-item-title">${chat.title}</div>
-                    <div class="chat-item-preview">${chat.preview}</div>
-                </div>
-            `).join('');
+            chatList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Loading chats...</div>';
+            
+            fetch('/api/chat-history')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.conversations.length > 0) {
+                        chatList.innerHTML = '';
+                        data.conversations.forEach(conv => {
+                            const chatItem = document.createElement('div');
+                            chatItem.className = 'chat-item' + (conv.is_current ? ' active' : '');
+                            chatItem.onclick = () => loadChat(conv.id);
+                            
+                            let timeStr = 'New conversation';
+                            if (conv.created_at) {
+                                const date = new Date(conv.created_at);
+                                // Format date nicely
+                                const now = new Date();
+                                const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                                
+                                if (diffDays === 0) {
+                                    timeStr = 'Today ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                                } else if (diffDays === 1) {
+                                    timeStr = 'Yesterday';
+                                } else if (diffDays < 7) {
+                                    timeStr = diffDays + ' days ago';
+                                } else {
+                                    timeStr = date.toLocaleDateString();
+                                }
+                            }
+                            
+                            chatItem.innerHTML = `
+                                <div class="chat-item-header" style="font-size: 12px; color: #999; margin-bottom: 4px;">
+                                    ${timeStr}
+                                </div>
+                                <div class="chat-item-preview" style="font-size: 14px; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    ${conv.last_message}
+                                </div>
+                            `;
+                            
+                            chatList.appendChild(chatItem);
+                        });
+                    } else {
+                        chatList.innerHTML = `
+                            <div style="padding: 20px; text-align: center; color: #666;">
+                                <p style="font-size: 14px; margin: 0;">No previous chats</p>
+                                <p style="font-size: 12px; margin-top: 8px; color: #999;">Start a new conversation</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chat history:', error);
+                    chatList.innerHTML = `
+                        <div style="padding: 20px; text-align: center; color: #999;">
+                            <p style="font-size: 14px;">Unable to load chats</p>
+                        </div>
+                    `;
+                });
         }
 
         // Risk reports management
         function loadRiskReports() {
             const reportsList = document.getElementById('riskReportsList');
             
+            console.log('[Risk Reports] Loading reports for conversation:', currentConversationId);
+            
             // Check if there's a risk assessment for current conversation
             if (currentConversationId) {
                 fetch(`/api/risk-assessment/${currentConversationId}`)
                     .then(response => response.json())
                     .then(data => {
+                        console.log('[Risk Reports] API response:', data);
                         if (data.success && data.report) {
                             // Extract company name from the report
                             const companyMatch = data.report.match(/Company Name:\*\*\s*([^*\n]+)/);
@@ -1675,7 +1816,78 @@
 
         function loadChat(chatId) {
             console.log('Loading chat:', chatId);
-            // Implementation to load specific chat
+            
+            // If it's the current conversation, do nothing
+            if (chatId === currentConversationId) {
+                return;
+            }
+            
+            // Show loading state
+            const messagesContainer = document.getElementById('messagesContainer');
+            messagesContainer.innerHTML = '<div style="text-align: center; padding: 2rem; color: #666;">Loading conversation...</div>';
+            
+            // Load the conversation
+            fetch(`/api/load-conversation/${chatId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update current conversation ID
+                        currentConversationId = data.conversation_id;
+                        
+                        // Clear messages and add them
+                        messagesContainer.innerHTML = '';
+                        
+                        if (data.messages.length === 0) {
+                            // Show welcome message for empty conversation
+                            messagesContainer.innerHTML = `
+                                <div class="welcome-message">
+                                    <h2>Hi! I'm Embroker AI, your insurance specialist</h2>
+                                    <p>I'm equipped with advanced tools for insurance knowledge search and company risk analysis.</p>
+                                    <div class="tools-indicator">
+                                        <strong>Available Tools:</strong> Insurance Knowledge Search, Company Risk Analysis, Underwriting Assessment
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            // Display all messages
+                            data.messages.forEach(msg => {
+                                addMessage(msg.content, msg.role);
+                            });
+                        }
+                        
+                        // Scroll to bottom
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        
+                        // Update chat history to show active conversation
+                        loadChatHistory();
+                        
+                        // Update risk reports for new conversation
+                        loadRiskReports();
+                        
+                        // Close mobile sidebar if open
+                        closeMobileSidebar();
+                    } else {
+                        messagesContainer.innerHTML = `
+                            <div style="text-align: center; padding: 2rem; color: #999;">
+                                <p>Failed to load conversation</p>
+                                <button onclick="location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #10a37f; color: white; border: none; border-radius: 0.375rem; cursor: pointer;">
+                                    Refresh Page
+                                </button>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading conversation:', error);
+                    messagesContainer.innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: #999;">
+                            <p>Error loading conversation</p>
+                            <button onclick="location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #10a37f; color: white; border: none; border-radius: 0.375rem; cursor: pointer;">
+                                Refresh Page
+                            </button>
+                        </div>
+                    `;
+                });
         }
 
         function viewRiskReport(reportId) {
@@ -1746,13 +1958,20 @@
             return html;
         }
 
+
+
         // Initialize sidebar content
         document.addEventListener('DOMContentLoaded', function() {
             loadChatHistory();
             loadRiskReports();
             
+
+            
             // Refresh risk reports periodically
             setInterval(loadRiskReports, 30000); // Every 30 seconds
+            
+            // Refresh usage stats periodically
+            setInterval(fetchUsageStats, 60000); // Every minute
         });
     </script>
 </body>

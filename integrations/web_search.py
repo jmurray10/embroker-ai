@@ -14,7 +14,11 @@ class WebSearchAgent:
     
     def __init__(self):
         """Initialize web search agent"""
-        self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Use same API key as main agent (POC_OPENAI_API) with fallback
+        api_key = os.getenv("POC_OPENAI_API") or os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OpenAI API key not found (neither POC_OPENAI_API nor OPENAI_API_KEY)")
+        self.client = openai.OpenAI(api_key=api_key)
         logging.info("[WebSearch] Web search agent initialized")
     
     def search_web(self, query: str, context_size: str = "medium", user_location: Optional[Dict] = None) -> str:
@@ -155,7 +159,7 @@ class WebSearchAgent:
         """Get web search system status"""
         return {
             "web_search_available": True,
-            "api_key_configured": bool(os.getenv("OPENAI_API_KEY")),
+            "api_key_configured": bool(os.getenv("POC_OPENAI_API") or os.getenv("OPENAI_API_KEY")),
             "default_context_size": "medium",
             "timeout_seconds": 10
         }
